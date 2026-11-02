@@ -7,7 +7,6 @@
 <title>Straits Tidal Flow · Singapore &amp; Malacca</title>
 <style>/*__LEAFLET_CSS__*/.vhfLbl{transform:translate(-50%,-50%);text-align:center;white-space:nowrap;font:600 11px system-ui;color:#e9d5ff;text-shadow:0 0 3px #0b1220,0 0 3px #0b1220}
 .vhf{color:#e9d5ff;margin-top:2px}
-.vhfKey{position:absolute;right:8px;bottom:28px;z-index:800;background:rgba(11,18,32,.88);color:#e9d5ff;font:11px/1.35 system-ui;padding:6px 8px;border:1px solid #6b21a8;border-radius:6px;max-width:250px;pointer-events:none}
 </style>
 <script>/*__LEAFLET_JS__*/</script>
 <script>/*__CHART_JS__*/</script>
@@ -116,7 +115,6 @@
     <canvas id="flow"></canvas>
     <div class="warn">Prototype · not for navigation</div>
     <div class="wxnotes"><div id="wxNote"></div></div>
-    <div id="vhfKey" class="vhfKey" style="display:none"><b>STRAITREP VHF</b> (MHz)<br>S1 Angsa Ch 66 · 156.325/160.925<br>S2 Jugra Ch 88 · 157.425<br>S3 Rachado Ch 84 · 157.225/161.825<br>S4 Undan Ch 61 · 156.075/160.675<br>S5 Segenting Ch 88 · 157.425 <i>(S1–5 Klang VTS)</i><br>S6 Piai Ch 88 · 157.425 <i>(Johor VTS)</i><br>S7 West Ch 73 · 156.675<br>S8 Central Ch 14 · 156.700<br>S9 East Ch 10 · 156.500 <i>(S7–9 Singapore VTIS)</i><br>Ch 16 · 156.800 broadcasts · sector lines approx.</div>
     <div class="mapctl">
       <div class="chip on" id="tglFlow">Current</div>
       <div class="chip" id="tglLanes">Lanes</div>
@@ -1076,7 +1074,7 @@ $('live').onclick = goLive;
 $('scrub').oninput = e => { stopLive(); setMinute(+e.target.value); };
 $('date').onchange = e => { if (e.target.value) { stopLive(); changeDate(e.target.value); } };
 $('tglFlow').onclick = e => { App.showFlow = !App.showFlow; e.target.classList.toggle('on', App.showFlow); if (App.showFlow) resetParticles(); };
-$('tglVhf').onclick = e => { const on = !map.hasLayer(vhfLayer); on ? vhfLayer.addTo(map) : map.removeLayer(vhfLayer); e.target.classList.toggle('on', on); $('vhfKey').style.display = on ? '' : 'none'; };
+$('tglVhf').onclick = e => { const on = !map.hasLayer(vhfLayer); on ? vhfLayer.addTo(map) : map.removeLayer(vhfLayer); e.target.classList.toggle('on', on); };
 $('tglLanes').onclick = e => { const on = !map.hasLayer(lanes); on ? lanes.addTo(map) : map.removeLayer(lanes); e.target.classList.toggle('on', on); };
 $('tglWind').onclick = e => { const on = !WX.windOn; e.target.classList.toggle('on', on); WX.toggleWind(on); };
 {
