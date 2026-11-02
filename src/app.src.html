@@ -795,7 +795,7 @@ const WX = (() => {
   const OM = 'https://api.open-meteo.com/v1/forecast';
   const cache = new Map();          // "lat,lng" -> { t:[ms], u:[], v:[], g:[], got }
   const wc = document.getElementById('wind'), wx = wc.getContext('2d');
-  let windOn = false, grid = null, status = '', wW = 0, wH = 0, wDPR = 1, streaks = [], wMoving = false;
+  let wCleared = false, windOn = false, grid = null, status = '', wW = 0, wH = 0, wDPR = 1, streaks = [], wMoving = false;
   const STEPS = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 1.5, 2, 3];
   const key = (la, ln) => la.toFixed(3) + ',' + ln.toFixed(3);
 
@@ -884,7 +884,9 @@ const WX = (() => {
   }
   function seed() { const n = Math.round(Math.max(250, Math.min(1400, wW * wH / 900))); streaks = Array.from({ length: n }, () => ({ x: Math.random() * wW, y: Math.random() * wH, age: Math.random() * 60 | 0, max: 50 + Math.random() * 60 })); tx.clearRect(0, 0, wW, wH); }
   function frame() {                         // called from the main animation loop
-    if (!windOn || wMoving || !grid || !grid.ok) return;
+    if (!windOn || wMoving) return;
+    if (!grid || !grid.ok) { if (!wCleared) { wx.clearRect(0, 0, wW, wH); tx.clearRect(0, 0, wW, wH); wCleared = true; } return; }
+    wCleared = false;
     tx.globalCompositeOperation = 'destination-out'; tx.fillStyle = 'rgba(0,0,0,0.06)'; tx.fillRect(0, 0, wW, wH);
     tx.globalCompositeOperation = 'source-over';
     const k = 0.045 * Math.pow(1.3, map.getZoom() - 7);
@@ -902,8 +904,20 @@ const WX = (() => {
     wx.imageSmoothingEnabled = true; wx.drawImage(field, 0, 0, wW, wH);
     wx.drawImage(trail, 0, 0, wW, wH);
   }
-  function noteWind() { $('wxNote').innerHTML = status || (grid && grid.ok ? `Wind ${fmtT(App.minute)} SGT · ECMWF<br><span class="wbar"></span> 0 · 6 · 11 · 16 · 21 · 27+ kn` : 'Wind loading…'); }
-  function onTime() { if (windOn && grid && Math.abs(App.ms - grid.ms) > 5 * 60e3) { fillGrid(); paintField(); noteWind(); } }
+  function dataSpan() {                      // first and last forecast time held for this view
+    let lo = Infinity, hi = -Infinity;
+    if (grid) for (const [la, ln] of grid.pts) { const c = cache.get(key(la, ln)); if (c) { lo = Math.min(lo, c.t[0]); hi = Math.max(hi, c.t[c.t.length - 1]); } }
+    return isFinite(hi) ? [lo, hi] : null;
+  }
+  function noteWind() {
+    if (status) { $('wxNote').innerHTML = status; return; }
+    if (grid && grid.ok) { $('wxNote').innerHTML = `Wind ${fmtT(App.minute)} SGT · ECMWF<br><span class="wbar"></span> 0 · 6 · 11 · 16 · 21 · 27+ kn`; return; }
+    const sp = dataSpan();
+    if (!sp) { $('wxNote').innerHTML = 'Wind loading…'; return; }
+    const f = ms => { const d = new Date(ms + SGT_OFFSET_MS); return d.getUTCDate() + ' ' + 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')[d.getUTCMonth()] + ' ' + d.toISOString().slice(11, 16); };
+    $('wxNote').innerHTML = App.ms > sp[1] ? `Wind forecast not available this far ahead<br>(ECMWF runs to ${f(sp[1])} SGT)` : `Wind data not available before ${f(sp[0])} SGT`;
+  }
+  function onTime() { if (windOn && grid && Math.abs(App.ms - grid.ms) > 5 * 60e3) { fillGrid(); noteWind(); paintField(); } }
   async function refreshWind() {
     if (!windOn) return;
     grid = makeGrid(); fillGrid(); if (grid.ok) paintField(); noteWind();
