@@ -3,7 +3,7 @@ import json, os
 s = open('src/app.src.html').read()
 mpa = json.load(open('data/mpa_data.json')); tide = json.load(open('data/sg_tide.json'))
 data = ('const MPA_DATA=' + json.dumps(mpa, separators=(',', ':')) + ';\nconst SG_TIDE=' + json.dumps(tide, separators=(',', ':')) +
-        ';\nconst LAND=' + open('data/land.json').read() + ';\nconst JOHOR=' + open('data/johor_channels.json').read() + ';')
+        ';\nconst CMEMS=' + (open('data/cmems.json').read() if os.path.exists('data/cmems.json') else 'null') + ';\nconst LAND=' + open('data/land.json').read() + ';\nconst JOHOR=' + open('data/johor_channels.json').read() + ';')
 for k, v in {'/*__LEAFLET_CSS__*/': open('src/vendor/leaflet.css').read(), '/*__LEAFLET_JS__*/': open('src/vendor/leaflet.js').read(),
              '/*__CHART_JS__*/': open('src/vendor/chart.js').read(), '/*__DATA__*/': data}.items():
     assert k in s, k; s = s.replace(k, v)
