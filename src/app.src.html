@@ -883,7 +883,11 @@ function loop(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (App.playing) {
     let m = App.minute + dt * App.speed;          // 1× = 1 tide-minute per second
-    if (m >= 1440) m -= 1440;
+    if (m >= 1440) {                              // roll over to the next day at 23:59
+      m -= 1440;
+      const d = new Date(App.dateStr + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1);
+      App.minute = m; changeDate(d.toISOString().slice(0, 10));
+    }
     App.minute = m; updateReadouts();
   } else if (App.live && (liveTick += dt) > 1) {
     liveTick = 0; const n = sgtNow();
