@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1220" />
+<title>Straits Tidal Flow · Singapore &amp; Malacca</title>
+<style>/*__LEAFLET_CSS__*/</style>
+<script>/*__LEAFLET_JS__*/</script>
+<script>/*__CHART_JS__*/</script>
+<script>/*__DATA__*/</script>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111a2e; --panel2:#16213a; --line:#22304d;
+    --text:#e2e8f0; --mute:#8aa0bf; --cyan:#22d3ee; --emerald:#34d399;
+    --amber:#fbbf24; --rose:#fb7185;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+    -webkit-tap-highlight-color:transparent}
+  button,input,select{font:inherit;color:inherit}
+  .app{display:grid;height:100%;grid-template-columns:1fr 340px;
+    grid-template-rows:auto 1fr auto;grid-template-areas:"top top" "map side" "bot side"}
+  header{grid-area:top;display:flex;align-items:center;gap:12px;padding:10px 14px;
+    background:var(--panel);border-bottom:1px solid var(--line)}
+  header h1{font-size:15px;margin:0;font-weight:650;letter-spacing:.3px}
+  header h1 span{color:var(--cyan)}
+  header .sp{flex:1}
+  .badge{font-size:11px;font-weight:700;letter-spacing:.6px;padding:3px 8px;border-radius:999px;
+    border:1px solid currentColor;text-transform:uppercase;white-space:nowrap}
+  .badge.sim{color:var(--amber)} .badge.live{color:var(--emerald)} .badge.err{color:var(--rose)}
+  input[type=date]{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 8px;color-scheme:dark}
+  #mapWrap{grid-area:map;position:relative;min-height:300px}
+  #map{position:absolute;inset:0;background:#0b1424}
+  #flow{position:absolute;inset:0;pointer-events:none;z-index:450}
+  .mapctl{position:absolute;z-index:500;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
+  .chip{background:rgba(17,26,46,.92);border:1px solid var(--line);border-radius:8px;padding:6px 10px;
+    font-size:12px;cursor:pointer;user-select:none}
+  .chip.on{border-color:var(--cyan);color:var(--cyan)}
+  .legend{position:absolute;z-index:500;left:10px;bottom:22px;background:rgba(17,26,46,.92);
+    border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--mute)}
+  .legend i{display:inline-block;width:18px;height:3px;border-radius:2px;margin:0 4px 2px 8px;vertical-align:middle}
+  .warn{position:absolute;z-index:500;left:10px;top:10px;background:rgba(251,113,133,.12);
+    border:1px solid rgba(251,113,133,.5);color:#fecdd3;border-radius:8px;padding:4px 8px;font-size:11px}
+  aside{grid-area:side;background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .card h3{margin:0 0 8px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--mute);font-weight:700}
+  .grp{font-size:11px;color:var(--mute);margin:8px 0 4px}
+  .stns{display:flex;flex-wrap:wrap;gap:6px}
+  .stn-btn{flex:1 1 46%;text-align:left;background:#0e172b;border:1px solid var(--line);border-radius:9px;padding:7px 9px;cursor:pointer}
+  .stn-btn b{display:block;font-size:12.5px;font-weight:600}
+  .stn-btn small{color:var(--mute);font-size:11px}
+  .stn-btn.on{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
+  .compassRow{display:flex;gap:12px;align-items:center}
+  #compass{width:150px;height:150px;flex:none}
+  .read{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:13px}
+  .read dt{color:var(--mute)} .read dd{margin:0;font-weight:650;font-variant-numeric:tabular-nums}
+  .big{font-size:22px;font-weight:750;color:var(--emerald);font-variant-numeric:tabular-nums}
+  .events{font-size:12.5px;font-variant-numeric:tabular-nums;display:grid;grid-template-columns:auto auto 1fr;gap:3px 10px}
+  .events .hw{color:var(--cyan)} .events .lw{color:#93c5fd} .events .mute{color:var(--mute)}
+  details summary{cursor:pointer;color:var(--mute);font-size:12px}
+  .src input{width:100%;background:#0e172b;border:1px solid var(--line);border-radius:8px;padding:7px 8px;margin:8px 0;font-size:12px}
+  .src button,.ctl button{background:#0e172b;border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+  .src p{font-size:11.5px;color:var(--mute);margin:6px 0}
+  .src code{font-size:11px;color:#cbd5e1}
+  .bot{grid-area:bot;background:var(--panel);border-top:1px solid var(--line);padding:10px 14px calc(10px + var(--safe-b))}
+  .ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ctl button.on{border-color:var(--emerald);color:var(--emerald)}
+  #play{min-width:44px;font-size:15px}
+  #tlabel{font-weight:700;font-variant-numeric:tabular-nums;min-width:96px}
+  #scrub{flex:1;min-width:160px;accent-color:var(--cyan);height:28px}
+  .chartBox{position:relative;height:190px;margin-top:8px}
+  .stnIcon{width:28px;height:28px;margin:-14px 0 0 -14px;position:relative}
+  .stnIcon .dot{position:absolute;left:10px;top:10px;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--bg)}
+  .stnIcon svg{position:absolute;inset:0;transition:transform .2s linear}
+  .stnIcon.sel .dot{background:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.35)}
+  .leaflet-container{background:#0a0f1a}
+  .leaflet-tooltip.lbl{background:rgba(17,26,46,.92);color:var(--text);border:1px solid var(--line);font-size:11px;box-shadow:none}
+  .leaflet-tooltip.lbl:before{display:none}
+  .probe .leaflet-popup-content-wrapper,.probe .leaflet-popup-tip{background:rgba(17,26,46,.96);color:var(--text);border:1px solid var(--line);box-shadow:none}
+  .probe .leaflet-popup-content{margin:10px 14px;font-size:12px;line-height:1.45}
+  .probe .pv{font-size:20px;font-weight:700;color:#22d3ee}
+  .probe .ps{color:#8aa0bf;font-size:11px;margin-top:4px}
+  .probe a.leaflet-popup-close-button{color:#8aa0bf}
+  @media (max-width: 860px){
+    .app{grid-template-columns:1fr;grid-template-rows:auto 52vh auto auto;
+      grid-template-areas:"top" "map" "bot" "side";height:auto;min-height:100%}
+    aside{border-left:0;border-top:1px solid var(--line);overflow:visible}
+    header h1{font-size:13.5px}
+    #compass{width:128px;height:128px}
+    .chartBox{height:170px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Straits <span>Tidal Flow</span></h1>
+    <span id="srcBadge" class="badge sim">Simulated</span>
+    <div class="sp"></div>
+    <input type="date" id="date" aria-label="Date (SGT)" />
+  </header>
+
+  <div id="mapWrap">
+    <div id="map"></div>
+    <canvas id="flow"></canvas>
+    <div class="warn">Prototype · not for navigation</div>
+    <div class="mapctl">
+      <div class="chip on" id="tglFlow">Flow</div>
+      <div class="chip" id="tglLanes">Lanes</div>
+    </div>
+    <div class="legend">Drift
+      <i style="background:#22d3ee"></i>&lt;1 kn
+      <i style="background:#34d399"></i>1–2
+      <i style="background:#fbbf24"></i>2–3
+      <i style="background:#fb7185"></i>&gt;3
+    </div>
+  </div>
+
+  <aside>
+    <div class="card">
+      <h3>Stations</h3>
+      <div id="stnList"></div>
+    </div>
+
+    <div class="card">
+      <h3 id="selName">Station</h3>
+      <div class="compassRow">
+        <svg id="compass" viewBox="-100 -100 200 200" aria-label="Compass rose">
+          <circle r="92" fill="#0e172b" stroke="#22304d" stroke-width="2"/>
+          <circle r="70" fill="none" stroke="#1c2943" stroke-width="1"/>
+          <g id="ticks"></g>
+          <text y="-74" text-anchor="middle" fill="#e2e8f0" font-size="14" font-weight="700">N</text>
+          <text x="77" y="5" text-anchor="middle" fill="#8aa0bf" font-size="12">E</text>
+          <text y="84" text-anchor="middle" fill="#8aa0bf" font-size="12">S</text>
+          <text x="-77" y="5" text-anchor="middle" fill="#8aa0bf" font-size="12">W</text>
+          <g id="needle">
+            <path d="M0,-62 L11,-30 L4,-32 L4,40 L-4,40 L-4,-32 L-11,-30 Z" fill="#34d399"/>
+          </g>
+          <circle r="5" fill="#e2e8f0"/>
+        </svg>
+        <div>
+          <div class="big" id="driftBig">0.0 kn</div>
+          <dl class="read">
+            <dt>Set</dt><dd id="rSet">—</dd>
+            <dt>Stream</dt><dd id="rPhase">—</dd>
+            <dt>Height</dt><dd id="rH">—</dd>
+            <dt>Tide</dt><dd id="rTrend">—</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Tides &amp; streams · <span id="evDate"></span></h3>
+      <div class="events" id="events"></div>
+    </div>
+
+    <div class="card src">
+      <h3>Data sources</h3>
+      <p><b style="color:var(--emerald)">MPA Digital Tidal Atlas</b> hourly current predictions (set &amp; drift) for 7 Singapore Strait points: <span id="mpaRange"></span>.</p>
+      <p><b style="color:var(--cyan)">Tide height</b>: MPA high/low water predictions, Tanjong Pagar (published via NEA): <span id="tideRange"></span>. Outside these dates the app uses harmonics fitted to the same MPA data.</p>
+      <p><b style="color:var(--amber)">Model</b> stations (Horsburgh, Malacca Strait) are approximate and for visual reference only.</p>
+      <p>Residual (monsoon) drift on model stations:
+        <select id="residual">
+          <option value="auto">Auto by month</option>
+          <option value="ne">NE monsoon</option>
+          <option value="sw">SW monsoon</option>
+          <option value="off">Off</option>
+        </select>
+      </p>
+    </div>
+  </aside>
+
+  <div class="bot">
+    <div class="ctl">
+      <button id="play" aria-label="Play/Pause">▶</button>
+      <button class="spd on" data-s="1" title="1 tide-minute per second">1×</button>
+      <button class="spd" data-s="5">5×</button>
+      <button class="spd" data-s="10">10×</button>
+      <button id="live" title="Follow the clock in real time">● Live</button>
+      <span id="tlabel">00:00 SGT</span>
+      <input type="range" id="scrub" min="0" max="1439" step="1" value="0" aria-label="Time of day" />
+    </div>
+    <div class="chartBox"><canvas id="chart"></canvas></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Straits Tidal Flow — Phase 1 prototype (single file)
+   Modules: CONFIG · Harmonic simulator · MPA source · Flow field ·
+            Map + particles · Chart · Timeline/UI
+   All clock times are Singapore Time (UTC+8).
+   ===================================================================== */
+const DEG = Math.PI / 180;
+const $ = id => document.getElementById(id);
+const SGT_OFFSET_MS = 8 * 3600e3;
+const J2000 = Date.UTC(2000, 0, 1);
+
+/* ---------- Harmonic constituents (speeds in °/hour) ---------- */
+const SPEED = { M2: 28.9841042, S2: 30.0, N2: 28.4397295, K1: 15.0410686, O1: 13.9430356, Q1: 13.3986609, M4: 57.9682084, MS4: 58.9841042 };
+const SEMI = ['M2', 'S2', 'N2'], DIUR = ['K1', 'O1'];
+
+/* ---------- Stations ----------
+   h: Z0 (m above chart datum) + [amplitude m, phase °]
+   u: along-channel current amplitude (kn) per constituent
+   lag: current phase relative to height (negative = current peaks before HW)
+   res: residual (non-tidal) drift in kn along flood axis, by monsoon
+   Values are representative approximations for visual prototyping only. */
+/* MPA Digital Tidal Atlas points (real hourly predictions embedded in MPA_DATA) */
+const MPA_NAMES = {
+  ssp_adcp: 'Raffles Lighthouse (ADCP)', ssp_a: "Sudong Bunkering 'A'", ssp_b: 'Sudong Special Purpose',
+  ssp_c: 'Sudong Explosive', ssp_d: "Sudong Bunkering 'B'", eba_a: "EBA Point A · Eastern SP 'C'", eba_b: 'EBA Point B · Changi SP',
+};
+function scaleFit(fit, k) {   // scale a harmonic E/N current fit (amplitudes and mean) by k
+  const o = {};
+  for (const ax of ['E', 'N']) { o[ax] = {}; for (const [c, v] of Object.entries(fit[ax])) o[ax][c] = Array.isArray(v) ? [v[0] * k, v[1]] : v * k; }
+  return o;
+}
+const STATIONS = [
+  ...MPA_DATA.map(m => ({ id: m.id, name: MPA_NAMES[m.id] || m.name, full: m.name, strait: m.area === 'EBA' || m.id.startsWith('eba') ? 'Eastern Bunkering · MPA Tidal Atlas' : 'Sudong · MPA Tidal Atlas',
+    lat: m.lat, lng: m.lng, zoom: 12, kind: 'mpa', mpa: m, uv: m.fit, tide: 'sg' })),
+  { id:'sultan', name:'Sultan Shoal', strait:'Singapore Strait · model', lat:1.2389, lng:103.6469, zoom:11, kind:'model',
+    tide:'sg', uv: MPA_DATA.find(m => m.id === 'ssp_a').fit, note:'current from MPA Sudong A harmonics' },
+  { id:'horsburgh', name:'Horsburgh Lighthouse', strait:'Singapore Strait · model', kind:'model', lat:1.3302, lng:104.4064, zoom:10,
+    h:{Z0:1.45, M2:[0.52,325], S2:[0.22,8], N2:[0.10,305], K1:[0.42,320], O1:[0.36,272]},
+    u:{M2:1.10, S2:0.45, N2:0.20, K1:0.85, O1:0.65}, lag:{semi:-80, diur:-75}, res:{ne:-0.60, sw:0.35},
+    uv: scaleFit(MPA_DATA.find(m => m.id === 'eba_a').fit, 1.2), mirror: { m: MPA_DATA.find(m => m.id === 'eba_a'), k: 1.2 }, note:'current extrapolated from MPA EBA Point A (×1.2), same timing' },
+  { id:'ofb', name:'One Fathom Bank', strait:'Malacca Strait · model', kind:'model', lat:2.8833, lng:100.9944, zoom:9,
+    h:{Z0:2.20, M2:[1.40,195], S2:[0.58,235], N2:[0.26,178], K1:[0.20,350], O1:[0.12,300]},
+    u:{M2:1.25, S2:0.50, N2:0.25, K1:0.20, O1:0.15}, lag:{semi:-20, diur:-20}, res:{ne:-0.20, sw:-0.15} },
+  { id:'karimun', name:'Karimun Channel', strait:'Malacca Strait · model', kind:'model', lat:0.9800, lng:103.5200, zoom:10,
+    h:{Z0:1.70, M2:[0.92,268], S2:[0.38,310], N2:[0.17,250], K1:[0.28,345], O1:[0.25,296]},
+    u:{M2:1.80, S2:0.70, N2:0.35, K1:0.45, O1:0.35}, lag:{semi:-60, diur:-50}, res:{ne:-0.10, sw:0.10} },
+  { id:'pd', name:'Port Dickson (offshore)', strait:'Malacca Strait · model', kind:'model', lat:2.4700, lng:101.7000, zoom:10,
+    h:{Z0:1.75, M2:[1.02,225], S2:[0.42,265], N2:[0.19,208], K1:[0.23,345], O1:[0.15,298]},
+    u:{M2:0.95, S2:0.38, N2:0.18, K1:0.20, O1:0.14}, lag:{semi:-25, diur:-25}, res:{ne:-0.15, sw:-0.10} },
+];
+
+/* ---------- Navigable channel corridors [lat, lng, half-width km] ----------
+   Polyline direction = flood (+) direction. Particles live only inside these. */
+const CORRIDORS = {
+  malacca: [[5.70,98.20,60],[4.80,99.30,55],[3.90,100.20,45],[3.00,100.85,32],[2.60,101.45,25],
+            [2.15,101.95,22],[1.75,102.55,20],[1.45,103.00,16],[1.26,103.33,8],[1.18,103.55,6]],
+  singapore: [[1.18,103.55,6],[1.15,103.66,5],[1.14,103.75,4],[1.16,103.85,4],[1.24,103.97,6],
+              [1.28,104.08,6],[1.30,104.22,6],[1.32,104.40,10],[1.38,104.60,16],[1.50,104.90,25]],
+  durian: [[0.30,103.80,10],[0.60,103.68,8],[0.85,103.58,6],[1.00,103.55,5],[1.18,103.55,6]],
+};
+/* Johor Strait channels (no MPA data): centrelines traced from the coastline, each node
+   [lat, lng, half-width km, K]. K = water surface area upstream ÷ channel cross-section,
+   so along-channel current ≈ K × rate of tide rise/fall (tidal-prism / continuity estimate).
+   Depths assumed: West Johor Strait 5 m, East 8 m, north of Ubin 10 m, Johor River 6 m,
+   Changi channel 15 m, east of Tekong 12 m. Causeway treated as closed. */
+const JOHOR_NAMES = { west: 'West Johor Strait', east: 'East Johor Strait', ubinN: 'Johor Strait (north of Ubin)',
+  river: 'Johor River', outA: 'Changi–Tekong channel', outB: 'East of Pulau Tekong' };
+const PRISM = { amp: 1.1, lagMin: 30 };   // Johor Strait tide vs Tanjong Pagar (assumed)
+const CORR_K = {};
+for (const [k, pts] of Object.entries(JOHOR)) { CORRIDORS['jh_' + k] = pts.map(p => [p[0], p[1], p[2]]); CORR_K['jh_' + k] = pts.map(p => p[3]); }
+
+/* ---------- Planar helpers (km) ---------- */
+const KX = 111.25, KY = 110.57;
+const SEGS = [];
+for (const [cid, pts] of Object.entries(CORRIDORS)) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [la1, lo1, w1] = pts[i], [la2, lo2, w2] = pts[i + 1];
+    const ax = lo1 * KX, ay = la1 * KY, bx = lo2 * KX, by = la2 * KY;
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+    const K = CORR_K[cid];
+    SEGS.push({ cid, ax, ay, dx, dy, len2: len * len, tx: dx / len, ty: dy / len, w1, w2, len,
+      jh: !!K, k1: K ? K[i] : 0, k2: K ? K[i + 1] : 0 });
+  }
+}
+function nearestSeg(lat, lng, noJohor) {
+  const x = lng * KX, y = lat * KY;
+  let best = null, bd = Infinity;
+  for (const s of SEGS) {
+    if (noJohor && s.jh) continue;
+    let t = ((x - s.ax) * s.dx + (y - s.ay) * s.dy) / s.len2;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const px = s.ax + s.dx * t, py = s.ay + s.dy * t;
+    const d = Math.hypot(x - px, y - py);
+    if (d < bd) { bd = d; best = { d, w: s.w1 + (s.w2 - s.w1) * t, tx: s.tx, ty: s.ty, cid: s.cid, jh: s.jh, K: s.k1 + (s.k2 - s.k1) * t }; }
+  }
+  return best;
+}
+// Flood axis per station = local channel tangent
+for (const s of STATIONS) {
+  const n = nearestSeg(s.lat, s.lng, true);
+  s.tx = n.tx; s.ty = n.ty;
+  s.flood = (Math.atan2(n.tx, n.ty) / DEG + 360) % 360;   // bearing °T of + direction
+}
+
+/* ---------- Residual (monsoon) ---------- */
+let residualMode = 'auto';
+function monsoonFor(ms) {
+  if (residualMode !== 'auto') return residualMode;
+  const m = new Date(ms + SGT_OFFSET_MS).getUTCMonth() + 1;
+  if (m >= 11 || m <= 3) return 'ne';
+  if (m >= 5 && m <= 9) return 'sw';
+  return 'off';      // inter-monsoon (Apr, Oct)
+}
+
+/* ---------- Harmonic simulator ---------- */
+const hrs = ms => (ms - J2000) / 3.6e6;
+function harm(o, t) {            // o = {Z|Z0, C:[amp, phase°], ...}
+  let v = o.Z ?? o.Z0 ?? 0;
+  for (const c in o) if (SPEED[c]) v += o[c][0] * Math.cos((SPEED[c] * t - o[c][1]) * DEG);
+  return v;
+}
+const Sim = {
+  height(s, ms) { return harm(s.h, hrs(ms)); },
+  along(s, ms) {   // signed along-channel current, kn (+ = flood direction)
+    const t = hrs(ms);
+    const mon = monsoonFor(ms);
+    let u = mon === 'off' ? 0 : s.res[mon];
+    for (const c of SEMI) u += s.u[c] * Math.cos((SPEED[c] * t - s.h[c][1] - s.lag.semi) * DEG);
+    for (const c of DIUR) u += s.u[c] * Math.cos((SPEED[c] * t - s.h[c][1] - s.lag.diur) * DEG);
+    return u;
+  },
+};
+
+/* ---------- Singapore tide height (MPA predictions via NEA) ----------
+   Inside the published range: cosine interpolation between official HW/LW
+   (Tanjong Pagar). Outside it: harmonic fit to those same predictions. */
+const SGTide = {
+  ev: SG_TIDE.events,                 // [msUTC, height m, 'H'|'L']
+  get from() { return this.ev[0][0]; }, get to() { return this.ev[this.ev.length - 1][0]; },
+  inRange(ms) { return ms >= this.from && ms <= this.to; },
+  height(ms) {
+    const e = this.ev;
+    if (!this.inRange(ms)) return harm(SG_TIDE.fit, hrs(ms));
+    let lo = 0, hi = e.length - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (e[m][0] <= ms) lo = m; else hi = m; }
+    const f = (ms - e[lo][0]) / (e[hi][0] - e[lo][0] || 1);
+    return e[lo][1] + (e[hi][1] - e[lo][1]) * (1 - Math.cos(Math.PI * f)) / 2;
+  },
+  eventsBetween(a, b) { return this.ev.filter(x => x[0] >= a && x[0] < b); },
+};
+
+/* ---------- MPA hourly current predictions (embedded) ---------- */
+const MPA = {
+  covers(m, ms) { return ms >= m.t0 && ms <= m.t0 + (m.spd.length - 1) * 3.6e6; },
+  sample(m, ms) {               // linear interpolation of the vector between hourly values
+    const x = (ms - m.t0) / 3.6e6, i = Math.min(m.spd.length - 2, Math.max(0, Math.floor(x))), f = x - i;
+    const v = k => { const sp = m.spd[k], d = m.dir[k] * DEG; return [sp * Math.sin(d), sp * Math.cos(d)]; };
+    const p = v(i), q = v(i + 1);
+    return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+  },
+  range() {
+    const m = MPA_DATA[0];
+    return [m.t0, m.t0 + (m.spd.length - 1) * 3.6e6];
+  },
+};
+
+/* ---------- Unified station state ----------
+   src: 'mpa' (MPA hourly predictions), 'mpafit' (harmonics fitted to MPA data), 'model' */
+function stationState(s, ms) {
+  let ve, vn, src;
+  if (s.kind === 'mpa' && MPA.covers(s.mpa, ms)) { [ve, vn] = MPA.sample(s.mpa, ms); src = 'mpa'; }
+  else if (s.mirror && MPA.covers(s.mirror.m, ms)) { [ve, vn] = MPA.sample(s.mirror.m, ms); ve *= s.mirror.k; vn *= s.mirror.k; src = 'model'; }
+  else if (s.uv) { const t = hrs(ms); ve = harm(s.uv.E, t); vn = harm(s.uv.N, t); src = s.kind === 'mpa' ? 'mpafit' : 'model'; }
+  else { const u = Sim.along(s, ms); ve = u * s.tx; vn = u * s.ty; src = 'model'; }
+  const h = s.tide === 'sg' ? SGTide.height(ms) : Sim.height(s, ms);
+  const hsrc = s.tide === 'sg' ? (SGTide.inRange(ms) ? 'mpa' : 'mpafit') : 'model';
+  const u = ve * s.tx + vn * s.ty;
+  const drift = Math.hypot(ve, vn);
+  const set = (Math.atan2(ve, vn) / DEG + 360) % 360;
+  return { u, h, ve, vn, drift, set, src, hsrc };
+}
+
+/* ---------- Flow field ---------- */
+let stateCache = [];
+let dEta = 0;   // rate of tide change in the Johor Strait, m/s
+function refreshStates(ms) {
+  stateCache = STATIONS.map(s => ({ s, st: stationState(s, ms) }));
+  const t = ms - PRISM.lagMin * 60e3;
+  dEta = PRISM.amp * (SGTide.height(t + 300e3) - SGTide.height(t - 300e3)) / 600;
+}
+const prismKn = K => K * dEta * 1.9438;   // + = flood (into the strait)
+/* Johor outlets meet the Singapore Strait: blend the two flows over ~3 km so they join smoothly */
+const MOUTHS = Object.entries(JOHOR).filter(([k]) => k !== 'river').map(([k, p]) => ({ k, lat: p[0][0], lng: p[0][1], tx: 0, ty: 0 }));
+const MOUTH_R = 3;   // km
+function mouthW(lat, lng) {
+  let w = 0;
+  for (const m of MOUTHS) { const d = Math.hypot((m.lng - lng) * KX, (m.lat - lat) * KY); if (d < MOUTH_R) w = Math.max(w, 1 - d / MOUTH_R); }
+  return w;
+}
+function johorVec(lat, lng, n) {
+  n = n && n.jh ? n : nearestSegJ(lat, lng);
+  if (!n) return [0, 0];
+  const r = Math.min(1, n.d / n.w), u = prismKn(n.K) * (1 - 0.45 * r * r);
+  return [u * n.tx, u * n.ty];
+}
+function blendVec(lat, lng, n) {
+  const w = mouthW(lat, lng);              // 1 at the mouth, 0 at 3 km away
+  const jv = johorVec(lat, lng, n);
+  if (w <= 0) return jv;
+  const sv = idwVec(lat, lng);
+  const a = n.jh ? 1 - 0.5 * w : 0.5 * w;  // Johor share: 1 well inside, 0.5 at the mouth, 0 offshore
+  return [a * jv[0] + (1 - a) * sv[0], a * jv[1] + (1 - a) * sv[1]];
+}
+function nearestSegJ(lat, lng) {
+  const x = lng * KX, y = lat * KY; let best = null, bd = Infinity;
+  for (const s of SEGS) { if (!s.jh) continue;
+    let t = ((x - s.ax) * s.dx + (y - s.ay) * s.dy) / s.len2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const d = Math.hypot(x - s.ax - s.dx * t, y - s.ay - s.dy * t);
+    if (d < bd) { bd = d; best = { d, w: s.w1 + (s.w2 - s.w1) * t, tx: s.tx, ty: s.ty, K: s.k1 + (s.k2 - s.k1) * t, jh: true, cid: s.cid }; } }
+  return best;
+}
+function idwVec(lat, lng) {
+  const x = lng * KX, y = lat * KY;
+  let ve = 0, vn = 0, ws = 0;
+  for (const { s, st } of stateCache) {
+    const d2 = (s.lng * KX - x) ** 2 + (s.lat * KY - y) ** 2 + 100;
+    const w = 1 / (d2 * Math.sqrt(d2));
+    ve += w * st.ve; vn += w * st.vn; ws += w;
+  }
+  return [ve / ws, vn / ws];
+}
+function field(lat, lng) {
+  const n = nearestSeg(lat, lng);
+  if (!n || n.d > n.w) return null;
+  const r = n.d / n.w;
+  if (n.jh || mouthW(lat, lng) > 0) { const [e, nn] = blendVec(lat, lng, n); return { u: 1, tx: e, ty: nn }; }
+  const [ve, vn] = idwVec(lat, lng);
+  const speed = (ve * n.tx + vn * n.ty) * (1 - 0.45 * r * r);   // channelised, slower at edges
+  return { u: speed, tx: n.tx, ty: n.ty };
+}
+
+/* ---------- App state ---------- */
+const App = {
+  dateStr: '', dayStart: 0, minute: 0,
+  playing: false, speed: 1, live: true,
+  sel: 'ssp_adcp', showFlow: true,
+  get ms() { return this.dayStart + this.minute * 60e3; },
+};
+function sgtNow() { const d = new Date(Date.now() + SGT_OFFSET_MS); return { date: d.toISOString().slice(0, 10), minute: d.getUTCHours() * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60 }; }
+function setDate(str) {
+  App.dateStr = str;
+  const [y, m, d] = str.split('-').map(Number);
+  App.dayStart = Date.UTC(y, m - 1, d) - SGT_OFFSET_MS;
+}
+const fmtT = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const fmtB = b => String(Math.round(b) % 360).padStart(3, '0') + '°T';
+
+/* ---------- Map ---------- */
+const map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true, worldCopyJump: false });
+const REGION = L.latLngBounds([[0.2, 98.4], [5.9, 104.9]]);
+// Built-in coastline (OpenStreetMap land polygons, simplified) — no tile server, no API key, works offline
+L.polygon(LAND.map(poly => poly.map(ring => ring.map(([x, y]) => [y, x]))), {
+  stroke: true, color: '#475569', weight: 1, fillColor: '#1e293b', fillOpacity: 1, interactive: false,
+}).addTo(map);
+map.attributionControl.addAttribution('Coastline &copy; OpenStreetMap contributors');
+map.setMaxZoom(14);
+const lanes = L.layerGroup(Object.values(CORRIDORS).map(p =>
+  L.polyline(p.map(q => [q[0], q[1]]), { color: '#22d3ee', weight: 1, opacity: .35, dashArray: '4 6' })));
+map.fitBounds(REGION);
+
+const markers = {};
+const ARROW_SVG = '<svg viewBox="0 0 28 28"><path d="M14 1 L19 10 L15.5 9.5 L15.5 14 L12.5 14 L12.5 9.5 L9 10 Z" fill="#34d399" stroke="#0b1220" stroke-width=".8"/></svg>';
+for (const s of STATIONS) {
+  const icon = L.divIcon({ className: '', html: `<div class="stnIcon" data-id="${s.id}">${ARROW_SVG}<div class="dot"></div></div>`, iconSize: [0, 0] });
+  const m = L.marker([s.lat, s.lng], { icon, keyboard: false }).addTo(map);
+  m.bindTooltip(s.name, { className: 'lbl', direction: 'right', offset: [12, 0] });
+  m.on('click', () => selectStation(s.id, true));
+  markers[s.id] = m;
+}
+
+/* ---------- Particle flow layer ---------- */
+const cvs = document.getElementById('flow'), ctx = cvs.getContext('2d');
+let W = 0, H = 0, DPR = 1, particles = [], moving = false;
+const COLORS = ['#22d3ee', '#34d399', '#fbbf24', '#fb7185'];
+function sizeCanvas() {
+  const r = document.getElementById('mapWrap').getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = r.width; H = r.height;
+  cvs.width = W * DPR; cvs.height = H * DPR; cvs.style.width = W + 'px'; cvs.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  resetParticles();
+}
+function spawn(p) {
+  // try screen-space rejection first (dense where you're looking), then corridor sampling
+  for (let i = 0; i < 12; i++) {
+    const x = Math.random() * W, y = Math.random() * H;
+    const ll = map.containerPointToLatLng([x, y]); const n = nearestSeg(ll.lat, ll.lng);
+    if (n && n.d < n.w) return Object.assign(p, { x, y, age: 0, max: 40 + Math.random() * 80 });
+  }
+  for (let i = 0; i < 6; i++) {
+    const s = SEGS[(Math.random() * SEGS.length) | 0], t = Math.random();
+    const w = (s.w1 + (s.w2 - s.w1) * t) * (Math.random() * 2 - 1) * .9;
+    const xk = s.ax + s.dx * t - s.ty * w, yk = s.ay + s.dy * t + s.tx * w;
+    const pt = map.latLngToContainerPoint([yk / KY, xk / KX]);
+    if (pt.x >= 0 && pt.y >= 0 && pt.x <= W && pt.y <= H) return Object.assign(p, { x: pt.x, y: pt.y, age: 0, max: 40 + Math.random() * 80 });
+  }
+  return Object.assign(p, { x: -1, y: -1, age: 0, max: 10 + Math.random() * 30, dead: true });
+}
+function resetParticles() {
+  ctx.clearRect(0, 0, W, H);
+  const n = Math.max(600, Math.min(2600, Math.round(W * H / 450)));
+  particles = Array.from({ length: n }, () => spawn({}));
+}
+map.on('movestart zoomstart', () => { moving = true; ctx.clearRect(0, 0, W, H); });
+map.on('moveend zoomend', () => { moving = false; resetParticles(); });
+
+function drawFlow() {
+  if (moving || !App.showFlow) { if (!App.showFlow) ctx.clearRect(0, 0, W, H); return; }
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = 'rgba(0,0,0,0.075)'; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'source-over';
+  const k = 0.32 * Math.pow(1.45, map.getZoom() - 7);
+  const buckets = [[], [], [], []];
+  for (const p of particles) {
+    if (p.dead || ++p.age > p.max) { p.dead = false; spawn(p); continue; }
+    const ll = map.containerPointToLatLng([p.x, p.y]);
+    const f = field(ll.lat, ll.lng);
+    if (!f) { spawn(p); continue; }
+    const nx = p.x + f.tx * f.u * k, ny = p.y - f.ty * f.u * k;
+    const a = Math.abs(f.u), b = a < 1 ? 0 : a < 2 ? 1 : a < 3 ? 2 : 3;
+    buckets[b].push(p.x, p.y, nx, ny);
+    p.x = nx; p.y = ny;
+    if (nx < 0 || ny < 0 || nx > W || ny > H) p.dead = true;
+  }
+  ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+  buckets.forEach((arr, i) => {
+    if (!arr.length) return;
+    ctx.strokeStyle = COLORS[i]; ctx.beginPath();
+    for (let j = 0; j < arr.length; j += 4) { ctx.moveTo(arr[j], arr[j + 1]); ctx.lineTo(arr[j + 2], arr[j + 3]); }
+    ctx.stroke();
+  });
+}
+
+/* ---------- Chart ---------- */
+const nowLine = {
+  id: 'nowLine',
+  afterDatasetsDraw(c) {
+    const x = c.scales.x.getPixelForValue(App.minute), { top, bottom } = c.chartArea, g = c.ctx;
+    g.save(); g.strokeStyle = 'rgba(226,232,240,.8)'; g.lineWidth = 1; g.setLineDash([3, 3]);
+    g.beginPath(); g.moveTo(x, top); g.lineTo(x, bottom); g.stroke();
+    g.setLineDash([]); g.fillStyle = '#e2e8f0'; g.beginPath(); g.arc(x, top, 3, 0, 7); g.fill(); g.restore();
+  },
+};
+const chart = new Chart(document.getElementById('chart'), {
+  type: 'line',
+  data: { datasets: [
+    { label: 'Tide height (m)', yAxisID: 'y', data: [], borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,.12)', fill: 'origin', borderWidth: 2, pointRadius: 0, tension: .35 },
+    { label: 'Current, along channel (kn)', yAxisID: 'y1', data: [], borderColor: '#34d399', borderWidth: 2, pointRadius: 0, tension: .35 },
+    { label: 'Drift speed (kn)', yAxisID: 'y1', data: [], borderColor: 'rgba(251,191,36,.8)', borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, tension: .35 },
+  ] },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: '#8aa0bf', boxWidth: 12, font: { size: 11 } } },
+      tooltip: { callbacks: { title: i => fmtT(i[0].parsed.x) + ' SGT', label: i => `${i.dataset.label}: ${i.parsed.y.toFixed(2)}` } },
+    },
+    scales: {
+      x: { type: 'linear', min: 0, max: 1440, ticks: { stepSize: 180, color: '#8aa0bf', callback: v => fmtT(v) }, grid: { color: 'rgba(34,48,77,.6)' } },
+      y: { position: 'left', min: 0, title: { display: true, text: 'Height m (CD)', color: '#22d3ee' }, ticks: { color: '#22d3ee' }, grid: { color: 'rgba(34,48,77,.6)' } },
+      y1: { position: 'right', title: { display: true, text: 'Current kn', color: '#34d399' }, ticks: { color: '#34d399' }, grid: { drawOnChartArea: false } },
+    },
+    onClick(e, _, c) { const x = c.scales.x.getValueForPixel(e.x); if (isFinite(x)) { stopLive(); setMinute(Math.max(0, Math.min(1439, x))); } },
+  },
+  plugins: [nowLine],
+});
+
+/* ---------- Daily series + events ---------- */
+function buildSeries() {
+  const s = STATIONS.find(x => x.id === App.sel);
+  const H = [], U = [], D = [];
+  for (let m = 0; m <= 1440; m += 10) {
+    const st = stationState(s, App.dayStart + m * 60e3);
+    H.push({ x: m, y: +st.h.toFixed(3) }); U.push({ x: m, y: +st.u.toFixed(3) }); D.push({ x: m, y: +st.drift.toFixed(3) });
+  }
+  const axis = dirName(s.flood);
+  chart.data.datasets[0].data = H;
+  chart.data.datasets[0].label = s.tide === 'sg' ? 'Tide height, Tanjong Pagar (m)' : 'Tide height, model (m)';
+  chart.data.datasets[1].data = U;
+  chart.data.datasets[1].label = `Current (kn, + = ${axis}-going)`;
+  chart.data.datasets[2].data = D;
+  chart.update();
+
+  // events: official HW/LW where available, else from the curve; slack & max stream from current
+  const ev = [];
+  const dayEnd = App.dayStart + 86400e3;
+  if (s.tide === 'sg' && SGTide.inRange(App.dayStart) && SGTide.inRange(dayEnd)) {
+    for (const [ms, h, t] of SGTide.eventsBetween(App.dayStart, dayEnd))
+      ev.push({ m: (ms - App.dayStart) / 60e3, t: t === 'H' ? 'HW' : 'LW', v: h.toFixed(1) + ' m', c: t === 'H' ? 'hw' : 'lw' });
+  } else {
+    for (let i = 1; i < H.length - 1; i++) {
+      if (H[i].y > H[i - 1].y && H[i].y >= H[i + 1].y) ev.push({ m: H[i].x, t: 'HW', v: H[i].y.toFixed(1) + ' m', c: 'hw' });
+      if (H[i].y < H[i - 1].y && H[i].y <= H[i + 1].y) ev.push({ m: H[i].x, t: 'LW', v: H[i].y.toFixed(1) + ' m', c: 'lw' });
+    }
+  }
+  for (let i = 1; i < U.length - 1; i++) {
+    if (Math.sign(U[i].y) !== Math.sign(U[i - 1].y)) ev.push({ m: U[i].x, t: 'Turn', v: `→ ${dirName(U[i].y > 0 ? s.flood : s.flood + 180)}-going`, c: 'mute' });
+    if (D[i].y > D[i - 1].y && D[i].y >= D[i + 1].y && D[i].y > .3) {
+      const st = stationState(s, App.dayStart + D[i].x * 60e3);
+      ev.push({ m: D[i].x, t: 'Max', v: `${D[i].y.toFixed(1)} kn ${fmtB(st.set)}`, c: 'mute' });
+    }
+  }
+  ev.sort((a, b) => a.m - b.m);
+  $('events').innerHTML = ev.map(e => `<span>${fmtT(e.m)}</span><span class="${e.c}">${e.t}</span><span>${e.v}</span>`).join('') || '<span class="mute">No events</span>';
+  $('evDate').textContent = App.dateStr;
+}
+const dirName = b => ['N','NE','E','SE','S','SW','W','NW'][Math.round((((b % 360) + 360) % 360) / 45) % 8];
+
+/* ---------- Tap the map for the current at that spot ---------- */
+function onLand(lat, lng) {
+  for (const poly of LAND) {
+    const r = poly[0];
+    let inside = false;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [xi, yi] = r[i], [xj, yj] = r[j];
+      if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    if (inside) return true;
+  }
+  return false;
+}
+function probeAt(lat, lng) {
+  if (onLand(lat, lng)) return { land: true };
+  const n = nearestSeg(lat, lng);
+  const x = lng * KX, y = lat * KY;
+  if (n && n.jh && n.d <= n.w * 1.6) {
+    const [e, nn] = blendVec(lat, lng, n), u = prismKn(n.K);
+    const mix = mouthW(lat, lng) > 0 ? ' (blended with Singapore Strait)' : '';
+    return { spd: Math.hypot(e, nn), set: (Math.atan2(e, nn) / DEG + 360) % 360, src: 'Estimate · ' + JOHOR_NAMES[n.cid.slice(3)] + mix, note: u >= 0 ? 'Flooding (into the strait)' : 'Ebbing (out of the strait)' };
+  }
+  const [ve, vn] = idwVec(lat, lng);
+  let near = null, nd = Infinity;
+  for (const { s } of stateCache) { const d = Math.hypot(s.lng * KX - x, s.lat * KY - y); if (d < nd) { nd = d; near = s; } }
+  const src = near.kind === 'mpa' && nd < 2 ? 'MPA Tidal Atlas · ' + near.name
+    : near.kind === 'mpa' && nd < 15 ? 'Interpolated from MPA points'
+    : n && n.d <= n.w ? 'Model · approx' : 'Rough estimate · outside modelled channels';
+  return { spd: Math.hypot(ve, vn), set: (Math.atan2(ve, vn) / DEG + 360) % 360, src };
+}
+const probe = L.popup({ className: 'probe', autoPan: false, closeButton: true });
+let probeLL = null;
+function probeHtml() {
+  const p = probeAt(probeLL.lat, probeLL.lng);
+  if (p.land) return '<b>Land</b>';
+  return `<div class="pv">${p.spd.toFixed(2)} kn</div><div>Set ${fmtB(p.set)} · ${p.spd < 0.15 ? 'near slack' : dirName(p.set) + '-going'}</div>` +
+    (p.note ? `<div>${p.note}</div>` : '') + `<div class="ps">${p.src}<br>${fmtT(App.minute)} SGT · ${probeLL.lat.toFixed(4)}, ${probeLL.lng.toFixed(4)}</div>`;
+}
+map.on('click', e => { probeLL = e.latlng; probe.setLatLng(probeLL).setContent(probeHtml()).openOn(map); });
+map.on('popupclose', e => { if (e.popup === probe) probeLL = null; });
+
+/* ---------- UI ---------- */
+// Hide the graph tooltip when tapping anywhere outside the graph
+function hideTip() {
+  if (!chart.tooltip || !chart.tooltip.getActiveElements().length) return;
+  chart.setActiveElements([]); chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update('none');
+}
+document.addEventListener('pointerdown', e => { if (e.target !== chart.canvas) hideTip(); }, true);
+document.addEventListener('touchstart', e => { if (e.target !== chart.canvas) hideTip(); }, { capture: true, passive: true });
+
+const ticks = $('ticks');
+for (let a = 0; a < 360; a += 10) {
+  const r1 = a % 90 === 0 ? 58 : a % 30 === 0 ? 63 : 67, r2 = 72;
+  const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  l.setAttribute('x1', r1 * Math.sin(a * DEG)); l.setAttribute('y1', -r1 * Math.cos(a * DEG));
+  l.setAttribute('x2', r2 * Math.sin(a * DEG)); l.setAttribute('y2', -r2 * Math.cos(a * DEG));
+  l.setAttribute('stroke', a % 30 === 0 ? '#8aa0bf' : '#3a4b6e'); l.setAttribute('stroke-width', a % 90 === 0 ? 2 : 1);
+  ticks.appendChild(l);
+}
+
+function renderStationList() {
+  const groups = {};
+  STATIONS.forEach(s => (groups[s.strait] ||= []).push(s));
+  $('stnList').innerHTML = Object.entries(groups).map(([g, list]) =>
+    `<div class="grp">${g}</div><div class="stns">${list.map(s =>
+      `<button class="stn-btn${s.id === App.sel ? ' on' : ''}" data-id="${s.id}"><b>${s.name}</b><small id="li-${s.id}">—</small></button>`).join('')}</div>`).join('');
+  $('stnList').querySelectorAll('.stn-btn').forEach(b => b.onclick = () => selectStation(b.dataset.id, true));
+}
+function selectStation(id, fly) {
+  App.sel = id;
+  const s = STATIONS.find(x => x.id === id);
+  document.querySelectorAll('.stn-btn').forEach(b => b.classList.toggle('on', b.dataset.id === id));
+  document.querySelectorAll('.stnIcon').forEach(e => e.classList.toggle('sel', e.dataset.id === id));
+  $('selName').textContent = s.full ? `${s.name} · MPA` : s.name;
+  if (fly) map.flyTo([s.lat, s.lng], s.zoom, { duration: .8 });
+  buildSeries(); updateReadouts();
+}
+
+let lastSeriesKey = '';
+function updateReadouts() {
+  refreshStates(App.ms);
+  for (const { s, st } of stateCache) {
+    const el = markers[s.id].getElement();
+    if (el) { const svg = el.querySelector('svg'); svg.style.transform = `rotate(${st.set}deg)`; svg.style.opacity = Math.min(1, .35 + st.drift / 2); }
+    const li = $('li-' + s.id); if (li) li.textContent = `${st.drift.toFixed(1)} kn · ${fmtB(st.set)}`;
+  }
+  const { s, st } = stateCache.find(x => x.s.id === App.sel);
+  const dh = stationState(s, App.ms + 10 * 60e3).h - st.h;
+  $('needle').setAttribute('transform', `rotate(${st.set})`);
+  $('driftBig').textContent = st.drift.toFixed(2) + ' kn';
+  $('rSet').textContent = fmtB(st.set);
+  const dirWord = dirName;
+  $('rPhase').textContent = st.drift < 0.15 ? 'Slack water' : `${dirWord(st.set)}-going`;
+  $('rH').textContent = st.h.toFixed(2) + ' m CD';
+  $('rTrend').textContent = Math.abs(dh) < .005 ? 'Stand' : dh > 0 ? 'Rising ▲' : 'Falling ▼';
+  $('tlabel').textContent = fmtT(App.minute) + ' SGT';
+  $('scrub').value = Math.floor(App.minute);
+  updateBadge(st);
+  if (probeLL && map.hasLayer(probe)) probe.setContent(probeHtml());
+  chart.draw();
+}
+function setMinute(m) { App.minute = m; updateReadouts(); }
+
+function changeDate(str) {
+  setDate(str); $('date').value = str;
+  buildSeries(); updateReadouts();
+}
+function updateBadge(st) {
+  const b = $('srcBadge');
+  const lab = { mpa: ['live', 'MPA data'], mpafit: ['sim', 'MPA harmonic fit'], model: ['err', 'Model · approx'] };
+  const [c, t] = lab[st.src];
+  b.className = 'badge ' + c; b.textContent = t;
+}
+
+function stopLive() { App.live = false; $('live').classList.remove('on'); }
+function goLive() {
+  App.live = true; App.playing = false; $('play').textContent = '▶'; $('live').classList.add('on');
+  const n = sgtNow(); if (n.date !== App.dateStr) changeDate(n.date); setMinute(n.minute);
+}
+
+$('play').onclick = () => {
+  App.playing = !App.playing; $('play').textContent = App.playing ? '⏸' : '▶';
+  if (App.playing) stopLive();
+};
+document.querySelectorAll('.spd').forEach(b => b.onclick = () => {
+  App.speed = +b.dataset.s; document.querySelectorAll('.spd').forEach(x => x.classList.toggle('on', x === b));
+});
+$('live').onclick = goLive;
+$('scrub').oninput = e => { stopLive(); setMinute(+e.target.value); };
+$('date').onchange = e => { if (e.target.value) { stopLive(); changeDate(e.target.value); } };
+$('tglFlow').onclick = e => { App.showFlow = !App.showFlow; e.target.classList.toggle('on', App.showFlow); if (App.showFlow) resetParticles(); };
+$('tglLanes').onclick = e => { const on = !map.hasLayer(lanes); on ? lanes.addTo(map) : map.removeLayer(lanes); e.target.classList.toggle('on', on); };
+{
+  const f = ms => new Date(ms + SGT_OFFSET_MS).toISOString().slice(0, 10);
+  const [a, b] = MPA.range(); $('mpaRange').textContent = `${f(a)} to ${f(b)}`;
+  $('tideRange').textContent = `${f(SGTide.from)} to ${f(SGTide.to)}`;
+}
+$('residual').onchange = e => { residualMode = e.target.value; buildSeries(); updateReadouts(); };
+
+/* ---------- Main loop ---------- */
+let last = performance.now(), liveTick = 0;
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (App.playing) {
+    let m = App.minute + dt * App.speed;          // 1× = 1 tide-minute per second
+    if (m >= 1440) m -= 1440;
+    App.minute = m; updateReadouts();
+  } else if (App.live && (liveTick += dt) > 1) {
+    liveTick = 0; const n = sgtNow();
+    if (n.date !== App.dateStr) changeDate(n.date);
+    App.minute = n.minute; updateReadouts();
+  }
+  drawFlow();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- Boot ---------- */
+window.addEventListener('resize', () => { map.invalidateSize(); sizeCanvas(); });
+new ResizeObserver(() => { map.invalidateSize(); sizeCanvas(); }).observe($('mapWrap'));
+(async function boot() {
+  renderStationList();
+  const n = sgtNow();
+  changeDate(n.date);
+  sizeCanvas();
+  selectStation(App.sel, false);
+  goLive();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
