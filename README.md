@@ -2,7 +2,7 @@
 
 Tidal current viewer for the Singapore Strait, Johor Strait and approaches. Prototype, not for navigation.
 
-**Open it:** https://kaixiang1988.github.io/straits-tidal-flow/
+**Open it:** https://straitsflow.github.io/straits-tidal-flow/
 
 ## Data
 - **Currents:** MPA Digital Tidal Atlas hourly predictions (Sudong points A–D and ADCP, Eastern Bunkering points A and B). These are model predictions published monthly, not live measurements.
