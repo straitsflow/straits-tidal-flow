@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0b1220" />
 <title>Straits Tidal Flow · Singapore &amp; Malacca</title>
-<style>/*__LEAFLET_CSS__*/</style>
+<style>/*__LEAFLET_CSS__*/.vhfLbl{transform:translate(-50%,-50%);white-space:nowrap;font:600 11px system-ui;color:#e9d5ff;text-shadow:0 0 3px #0b1220,0 0 3px #0b1220}
+.vhf{color:#e9d5ff;margin-top:2px}
+.vhfKey{position:absolute;right:8px;bottom:28px;z-index:800;background:rgba(11,18,32,.88);color:#e9d5ff;font:11px/1.35 system-ui;padding:6px 8px;border:1px solid #6b21a8;border-radius:6px;max-width:250px;pointer-events:none}
+</style>
 <script>/*__LEAFLET_JS__*/</script>
 <script>/*__CHART_JS__*/</script>
 <script>/*__DATA__*/</script>
@@ -113,10 +116,12 @@
     <canvas id="flow"></canvas>
     <div class="warn">Prototype · not for navigation</div>
     <div class="wxnotes"><div id="wxNote"></div></div>
+    <div id="vhfKey" class="vhfKey" style="display:none"><b>STRAITREP VHF</b><br>S1 Angsa 66 · S2 Jugra 88 · S3 Rachado 84<br>S4 Undan 61 · S5 Segenting 88 <i>(Klang VTS)</i><br>S6 Piai 88 <i>(Johor VTS)</i><br>S7 West 73 · S8 Central 14 · S9 East 10 <i>(Singapore VTIS)</i><br>Broadcasts on Ch 16 · sector lines approx.</div>
     <div class="mapctl">
       <div class="chip on" id="tglFlow">Current</div>
       <div class="chip" id="tglLanes">Lanes</div>
       <div class="chip" id="tglWind">Wind</div>
+      <div class="chip" id="tglVhf">VHF</div>
     </div>
     <div class="legend">Drift
       <i style="background:#22d3ee"></i>&lt;1 kn
@@ -586,6 +591,36 @@ map.setMaxZoom(14);
 const lanes = L.layerGroup(Object.values(CORRIDORS).map(p =>
   L.polyline(p.map(q => [q[0], q[1]]), { color: '#22d3ee', weight: 1, opacity: .35, dashArray: '4 6' })));
 map.fitBounds(REGION);
+/* ---------- STRAITREP sectors (VHF reporting) ----------
+   Channels & authorities: IMO MSC.73(69) App.3 / MPA VTIS page (official).
+   Sector lines: crew reference list of separating-line coordinates, checked by eye against the IMO
+   chartlets (App.1 & 2). Approximate — the official limits are only drawn on charts MAL 515/521/523. */
+const STRAITREP = [
+  { n: 1, name: 'Angsa',        ch: 66, vts: 'Klang VTS',  p: [[2.9, 100.6667], [3.0667, 100.9667], [2.9, 101.2167]] },
+  { n: 2, name: 'Jugra',        ch: 88, vts: 'Klang VTS',  p: [[2.9, 100.6667], [2.9, 101.2167], [2.6333, 101.6333], [2.35, 101.35]] },
+  { n: 3, name: 'Cape Rachado', ch: 84, vts: 'Klang VTS',  p: [[2.35, 101.35], [2.6333, 101.6333], [2.1667, 102.2], [1.85, 101.8167]] },
+  { n: 4, name: 'Undan',        ch: 61, vts: 'Klang VTS',  p: [[1.85, 101.8167], [2.1667, 102.2], [1.9, 102.65], [1.5833, 102.3833]] },
+  { n: 5, name: 'Segenting',    ch: 88, vts: 'Klang VTS',  p: [[1.5833, 102.3833], [1.9, 102.65], [1.5667, 103.3167], [1.1667, 102.9833]] },
+  { n: 6, name: 'Piai',         ch: 88, vts: 'Johor VTS',  p: [[1.1667, 102.9833], [1.5667, 103.3167], [1.25, 103.5], [1.1667, 103.4167]] },
+  { n: 7, name: 'VTIS West',    ch: 73, vts: 'Singapore VTS', p: [[1.1667, 103.4167], [1.25, 103.5], [1.1833, 103.75], [0.95, 103.75]] },
+  { n: 8, name: 'VTIS Central', ch: 14, vts: 'Singapore VTS', p: [[0.95, 103.75], [1.1833, 103.75], [1.3333, 104.0333], [1.1667, 104.0333]] },
+  { n: 9, name: 'VTIS East',    ch: 10, vts: 'Singapore VTS', p: [[1.1667, 104.0333], [1.3333, 104.0333], [1.5, 104.3833], [1.2, 104.3833]] },
+];
+const vhfLayer = L.layerGroup(STRAITREP.flatMap(s => {
+  const c = s.p.reduce((a, q) => [a[0] + q[0] / s.p.length, a[1] + q[1] / s.p.length], [0, 0]);
+  return [
+    L.polygon(s.p, { color: '#c084fc', weight: 1.5, dashArray: '6 5', fillColor: '#c084fc', fillOpacity: .06, interactive: false }),
+    L.marker(c, { interactive: false, keyboard: false, icon: L.divIcon({ className: '', iconSize: [0, 0],
+      html: `<div class="vhfLbl">S${s.n} · Ch ${s.ch}</div>` }) }),
+  ];
+}));
+function inPoly(lat, lng, p) { let o = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const [yi, xi] = p[i], [yj, xj] = p[j]; if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) o = !o; } return o; }
+function vhfLine(lat, lng) {
+  if (!map.hasLayer(vhfLayer)) return '';
+  const s = STRAITREP.find(s => inPoly(lat, lng, s.p));
+  return s ? `<div class="vhf">STRAITREP Sector ${s.n} ${s.name} · <b>VHF ${s.ch}</b> · ${s.vts}<br>Watch Ch ${s.ch} + Ch 16</div>` : '';
+}
+
 
 const markers = {};
 const ARROW_SVG = '<svg viewBox="0 0 28 28"><path d="M14 1 L19 10 L15.5 9.5 L15.5 14 L12.5 14 L12.5 9.5 L9 10 Z" fill="#34d399" stroke="#0b1220" stroke-width=".8"/></svg>';
@@ -784,7 +819,7 @@ function probeHtml() {
   const p = probeAt(probeLL.lat, probeLL.lng);
   if (p.land) return '<b>Land</b>';
   return `<div class="pv">${p.spd.toFixed(2)} kn</div><div>Set ${fmtB(p.set)} · ${p.spd < 0.15 ? 'near slack' : dirName(p.set) + '-going'}</div>` +
-    (p.note ? `<div>${p.note}</div>` : '') + windLine() + `<div class="ps">${p.src}<br>${fmtT(App.minute)} SGT · ${probeLL.lat.toFixed(4)}, ${probeLL.lng.toFixed(4)}</div>`;
+    (p.note ? `<div>${p.note}</div>` : '') + windLine() + vhfLine(probeLL.lat, probeLL.lng) + `<div class="ps">${p.src}<br>${fmtT(App.minute)} SGT · ${probeLL.lat.toFixed(4)}, ${probeLL.lng.toFixed(4)}</div>`;
 }
 map.on('click', e => { probeLL = e.latlng; probe.setLatLng(probeLL).setContent(probeHtml()).openOn(map); });
 map.on('popupclose', e => { if (e.popup === probe) probeLL = null; });
@@ -1039,6 +1074,7 @@ $('live').onclick = goLive;
 $('scrub').oninput = e => { stopLive(); setMinute(+e.target.value); };
 $('date').onchange = e => { if (e.target.value) { stopLive(); changeDate(e.target.value); } };
 $('tglFlow').onclick = e => { App.showFlow = !App.showFlow; e.target.classList.toggle('on', App.showFlow); if (App.showFlow) resetParticles(); };
+$('tglVhf').onclick = e => { const on = !map.hasLayer(vhfLayer); on ? vhfLayer.addTo(map) : map.removeLayer(vhfLayer); e.target.classList.toggle('on', on); $('vhfKey').style.display = on ? '' : 'none'; };
 $('tglLanes').onclick = e => { const on = !map.hasLayer(lanes); on ? lanes.addTo(map) : map.removeLayer(lanes); e.target.classList.toggle('on', on); };
 $('tglWind').onclick = e => { const on = !WX.windOn; e.target.classList.toggle('on', on); WX.toggleWind(on); };
 {
