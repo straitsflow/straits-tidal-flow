@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0b1220" />
 <title>Straits Tidal Flow · Singapore &amp; Malacca</title>
-<style>/*__LEAFLET_CSS__*/.vhfLbl{transform:translate(-50%,-50%);white-space:nowrap;font:600 11px system-ui;color:#e9d5ff;text-shadow:0 0 3px #0b1220,0 0 3px #0b1220}
+<style>/*__LEAFLET_CSS__*/.vhfLbl{transform:translate(-50%,-50%);text-align:center;white-space:nowrap;font:600 11px system-ui;color:#e9d5ff;text-shadow:0 0 3px #0b1220,0 0 3px #0b1220}
 .vhf{color:#e9d5ff;margin-top:2px}
 .vhfKey{position:absolute;right:8px;bottom:28px;z-index:800;background:rgba(11,18,32,.88);color:#e9d5ff;font:11px/1.35 system-ui;padding:6px 8px;border:1px solid #6b21a8;border-radius:6px;max-width:250px;pointer-events:none}
 </style>
@@ -116,7 +116,7 @@
     <canvas id="flow"></canvas>
     <div class="warn">Prototype · not for navigation</div>
     <div class="wxnotes"><div id="wxNote"></div></div>
-    <div id="vhfKey" class="vhfKey" style="display:none"><b>STRAITREP VHF</b><br>S1 Angsa 66 · S2 Jugra 88 · S3 Rachado 84<br>S4 Undan 61 · S5 Segenting 88 <i>(Klang VTS)</i><br>S6 Piai 88 <i>(Johor VTS)</i><br>S7 West 73 · S8 Central 14 · S9 East 10 <i>(Singapore VTIS)</i><br>Broadcasts on Ch 16 · sector lines approx.</div>
+    <div id="vhfKey" class="vhfKey" style="display:none"><b>STRAITREP VHF</b> (MHz)<br>S1 Angsa Ch 66 · 156.325/160.925<br>S2 Jugra Ch 88 · 157.425<br>S3 Rachado Ch 84 · 157.225/161.825<br>S4 Undan Ch 61 · 156.075/160.675<br>S5 Segenting Ch 88 · 157.425 <i>(S1–5 Klang VTS)</i><br>S6 Piai Ch 88 · 157.425 <i>(Johor VTS)</i><br>S7 West Ch 73 · 156.675<br>S8 Central Ch 14 · 156.700<br>S9 East Ch 10 · 156.500 <i>(S7–9 Singapore VTIS)</i><br>Ch 16 · 156.800 broadcasts · sector lines approx.</div>
     <div class="mapctl">
       <div class="chip on" id="tglFlow">Current</div>
       <div class="chip" id="tglLanes">Lanes</div>
@@ -606,19 +606,21 @@ const STRAITREP = [
   { n: 8, name: 'VTIS Central', ch: 14, vts: 'Singapore VTS', p: [[0.95, 103.75], [1.1833, 103.75], [1.3333, 104.0333], [1.1667, 104.0333]] },
   { n: 9, name: 'VTIS East',    ch: 10, vts: 'Singapore VTS', p: [[1.1667, 104.0333], [1.3333, 104.0333], [1.5, 104.3833], [1.2, 104.3833]] },
 ];
+// ITU RR Appendix 18 (ship TX / coast TX, MHz)
+const VHF_MHZ = { 10: '156.500', 14: '156.700', 16: '156.800', 61: '156.075 / 160.675', 66: '156.325 / 160.925', 73: '156.675', 84: '157.225 / 161.825', 88: '157.425' };
 const vhfLayer = L.layerGroup(STRAITREP.flatMap(s => {
   const c = s.p.reduce((a, q) => [a[0] + q[0] / s.p.length, a[1] + q[1] / s.p.length], [0, 0]);
   return [
     L.polygon(s.p, { color: '#c084fc', weight: 1.5, dashArray: '6 5', fillColor: '#c084fc', fillOpacity: .06, interactive: false }),
     L.marker(c, { interactive: false, keyboard: false, icon: L.divIcon({ className: '', iconSize: [0, 0],
-      html: `<div class="vhfLbl">S${s.n} · Ch ${s.ch}</div>` }) }),
+      html: `<div class="vhfLbl">S${s.n} · Ch ${s.ch}<br><small>${VHF_MHZ[s.ch]} MHz</small></div>` }) }),
   ];
 }));
 function inPoly(lat, lng, p) { let o = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const [yi, xi] = p[i], [yj, xj] = p[j]; if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) o = !o; } return o; }
 function vhfLine(lat, lng) {
   if (!map.hasLayer(vhfLayer)) return '';
   const s = STRAITREP.find(s => inPoly(lat, lng, s.p));
-  return s ? `<div class="vhf">STRAITREP Sector ${s.n} ${s.name} · <b>VHF ${s.ch}</b> · ${s.vts}<br>Watch Ch ${s.ch} + Ch 16</div>` : '';
+  return s ? `<div class="vhf">STRAITREP Sector ${s.n} ${s.name} · <b>VHF Ch ${s.ch}</b> (${VHF_MHZ[s.ch]} MHz) · ${s.vts}<br>Watch Ch ${s.ch} + Ch 16 (156.800 MHz)</div>` : '';
 }
 
 
