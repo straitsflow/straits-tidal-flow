@@ -41,7 +41,7 @@
   .chip{background:rgba(17,26,46,.92);border:1px solid var(--line);border-radius:8px;padding:6px 10px;
     font-size:12px;cursor:pointer;user-select:none}
   .chip.on{border-color:var(--cyan);color:var(--cyan)}
-  .wxnotes{position:absolute;right:10px;top:150px;text-align:right;max-width:55%;z-index:460;font-size:11px;color:#cbd5e1;text-shadow:0 0 3px #0b1220;pointer-events:none}
+  .wxnotes{position:absolute;left:10px;bottom:56px;text-align:left;max-width:70%;z-index:460;font-size:11px;color:#cbd5e1;text-shadow:0 0 3px #0b1220;pointer-events:none}
   .legend{position:absolute;z-index:500;left:10px;bottom:22px;background:rgba(17,26,46,.92);
     border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--mute)}
   .legend i{display:inline-block;width:18px;height:3px;border-radius:2px;margin:0 4px 2px 8px;vertical-align:middle}
@@ -114,7 +114,7 @@
     <div class="warn">Prototype · not for navigation</div>
     <div class="wxnotes"><div id="wxNote"></div><div id="cloudNote"></div></div>
     <div class="mapctl">
-      <div class="chip on" id="tglFlow">Flow</div>
+      <div class="chip on" id="tglFlow">Current</div>
       <div class="chip" id="tglLanes">Lanes</div>
       <div class="chip" id="tglWind">Wind</div>
       <div class="chip" id="tglClouds">Clouds</div>
@@ -869,8 +869,8 @@ const WX = (() => {
     for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
       const ll = map.containerPointToLatLng([(x + .5) * wW / cw, (y + .5) * wH / ch]);
       const w = windUV(ll.lat, ll.lng), o = (y * cw + x) * 4;
-      if (!w) { d[o + 3] = 0; continue; }
-      const c = rampRGB(Math.hypot(w[0], w[1])); d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 120;
+      if (!w || (LANDR && LANDR(ll.lat, ll.lng))) { d[o + 3] = 0; continue; }   // sea only, land stays clear
+      const sp = Math.hypot(w[0], w[1]), c = rampRGB(sp); d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = Math.min(115, 20 + sp * 6);   // calm = nearly clear
     }
     fx.putImageData(img, 0, 0);
   }
@@ -889,7 +889,7 @@ const WX = (() => {
     tx.globalCompositeOperation = 'destination-out'; tx.fillStyle = 'rgba(0,0,0,0.06)'; tx.fillRect(0, 0, wW, wH);
     tx.globalCompositeOperation = 'source-over';
     const k = 0.045 * Math.pow(1.3, map.getZoom() - 7);
-    tx.strokeStyle = 'rgba(255,255,255,.75)'; tx.lineWidth = 1; tx.beginPath();
+    tx.strokeStyle = 'rgba(255,255,255,.6)'; tx.lineWidth = 1; tx.beginPath();
     for (const p of streaks) {
       if (++p.age > p.max) { p.x = Math.random() * wW; p.y = Math.random() * wH; p.age = 0; continue; }
       const ll = map.containerPointToLatLng([p.x, p.y]), w = windUV(ll.lat, ll.lng);
