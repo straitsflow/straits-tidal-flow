@@ -904,7 +904,7 @@ const WX = (() => {
     wx.drawImage(trail, 0, 0, wW, wH);
   }
   function noteWind() { $('wxNote').innerHTML = status || (grid && grid.ok ? `Wind ${fmtT(App.minute)} SGT · ECMWF<br><span class="wbar"></span> 0 · 6 · 11 · 16 · 21 · 27+ kn` : 'Wind loading…'); }
-  function onTime() { if (windOn && grid && Math.abs(App.ms - grid.ms) > 5 * 60e3) { fillGrid(); paintField(); noteWind(); } }
+  function onTime() { cloudsOnTime(); if (windOn && grid && Math.abs(App.ms - grid.ms) > 5 * 60e3) { fillGrid(); paintField(); noteWind(); } }
   async function refreshWind() {
     if (!windOn) return;
     grid = makeGrid(); fillGrid(); if (grid.ok) paintField(); noteWind();
@@ -915,7 +915,7 @@ const WX = (() => {
   map.on('movestart zoomstart', () => { if (windOn) { wMoving = true; wx.clearRect(0, 0, wW, wH); } });
   map.on('moveend zoomend', () => { wMoving = false; clearTimeout(mt); mt = setTimeout(refreshWind, 400); if (windOn && grid) { paintField(); seed(); } });
   window.addEventListener('resize', () => setTimeout(sizeWind, 50));
-  setInterval(() => { refreshWind(); if (cloudsOn) startClouds(); }, 30 * 60e3);
+  setInterval(() => { refreshWind(); if (cloudsOn) startClouds(); }, 10 * 60e3);
   function windAtPoint(la, ln) {
     const w = windUV(la, ln); if (!w) return null;
     // gust from nearest grid node
@@ -964,26 +964,47 @@ const WX = (() => {
   function showFrame() {
     for (const k in clouds._tiles) drawTile(clouds._tiles[k].el);
     const d = new Date(new Date(frames[fi]).getTime() + SGT_OFFSET_MS);
-    $('cloudNote').textContent = `Clouds ${d.toISOString().slice(11, 16)} SGT${fi === frames.length - 1 ? ' (latest)' : ''} · 2 h satellite loop · colour = storm tops`;
+    $('cloudNote').textContent = `Clouds ${d.toISOString().slice(11, 16)} SGT${frames[fi] && new Date(frames[fi]).getTime() === latestT ? ' (latest)' : ''} · observed, 2 h loop · colour = storm tops`;
   }
-  async function startClouds() {
-    let latest = null;
+  // Clouds are observations only: shown for the selected time when it is in the past, the latest image when it is now,
+  // and hidden for future times (no free, stable short-range rain nowcast exists).
+  let latestT = 0, latestGot = 0, endT = 0;
+  async function getLatest() {
+    if (latestT && Date.now() - latestGot < 5 * 60e3) return latestT;
     try {
       const r = await fetch(GIBS.replace('{t}', 'default').replace('{z}', 5).replace('{x}', 25).replace('{y}', 15));
-      latest = r.headers.get('layer-time-actual');
+      const h = r.headers.get('layer-time-actual'); if (h) { latestT = new Date(h).getTime(); latestGot = Date.now(); }
     } catch (e) { }
-    if (!latest) { $('cloudNote').textContent = 'Clouds unavailable (offline?)'; return; }
-    const T = new Date(latest).getTime();
-    frames = Array.from({ length: NF }, (_, n) => new Date(T - (NF - 1 - n) * 600e3).toISOString().slice(0, 19) + 'Z');
+    return latestT;
+  }
+  async function startClouds(force) {
+    const L0 = await getLatest();
+    if (!L0) { $('cloudNote').textContent = 'Clouds unavailable (offline?)'; return; }
+    if (!cloudsOn) return;
+    const want = App.ms;
+    if (want > Date.now() + 15 * 60e3) {                       // future: nothing observed yet
+      clearInterval(timer); map.removeLayer(clouds); endT = 0;
+      $('cloudNote').textContent = 'Clouds: satellite observations only, none for future times';
+      return;
+    }
+    const E = Math.min(L0, Math.floor(want / 600e3) * 600e3);
+    if (!force && E === endT && map.hasLayer(clouds)) return;
+    endT = E;
+    frames = Array.from({ length: NF }, (_, n) => new Date(E - (NF - 1 - n) * 600e3).toISOString().slice(0, 19) + 'Z');
     fi = frames.length - 1;
     if (map.hasLayer(clouds)) clouds.redraw(); else clouds.addTo(map);
     clearInterval(timer); let hold = 0;
     timer = setInterval(() => {
       if (!cloudsOn) return;
-      if (fi === frames.length - 1 && hold++ < 4) return;      // pause on the latest frame
+      if (fi === frames.length - 1 && hold++ < 4) return;      // pause on the newest frame
       hold = 0; fi = (fi + 1) % frames.length; showFrame();
     }, 350);
     showFrame();
+  }
+  let lastCloudMs = 0;
+  function cloudsOnTime() {                                     // re-sync when the selected time moves by 30 min or more
+    if (!cloudsOn || Math.abs(App.ms - lastCloudMs) < 30 * 60e3) return;
+    lastCloudMs = App.ms; startClouds();
   }
   map.attributionControl.addAttribution('Wind: ECMWF IFS via <a href="https://open-meteo.com">Open-Meteo</a> (CC BY 4.0) · Clouds: NASA GIBS / JMA Himawari-9');
 
@@ -992,7 +1013,7 @@ const WX = (() => {
       windOn = on; wc.style.display = on ? '' : 'none';
       if (on) { sizeWind(); refreshWind(); } else { wx.clearRect(0, 0, wW, wH); $('wxNote').textContent = ''; }
     },
-    toggleClouds(on) { cloudsOn = on; if (on) startClouds(); else { clearInterval(timer); map.removeLayer(clouds); $('cloudNote').textContent = ''; } },
+    toggleClouds(on) { cloudsOn = on; if (on) { lastCloudMs = App.ms; startClouds(true); } else { clearInterval(timer); map.removeLayer(clouds); $('cloudNote').textContent = ''; } },
     onTime, frame, windAtPoint, get windOn() { return windOn; }, at, cache, get grid() { return grid; }, get frames() { return frames; },
   };
 })();
