@@ -28,7 +28,7 @@ jobs:
       - name: Update Tanjong Pagar tide tables (NEA)
         if: github.event_name != 'push'
         run: python scripts/fetch_tide.py
-      - name: Copernicus Marine surface currents (Malacca to mid South China Sea)
+      - name: Copernicus Marine surface currents (Andaman & Nicobar, Malacca, mid South China Sea)
         if: github.event_name != 'push'
         env:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}

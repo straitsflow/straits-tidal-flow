@@ -163,7 +163,7 @@
       <h3>Data sources</h3>
       <p><b style="color:var(--emerald)">MPA Digital Tidal Atlas</b> hourly current predictions (set &amp; drift) for 7 Singapore Strait points: <span id="mpaRange"></span>.</p>
       <p><b style="color:var(--cyan)">Tide height</b>: MPA high/low water predictions, Tanjong Pagar (published via NEA): <span id="tideRange"></span>. Outside these dates the app uses harmonics fitted to the same MPA data.</p>
-      <p><b style="color:var(--emerald)">Copernicus Marine SMOC</b> surface currents (Mercator 1/12° model: tide from FES + circulation incl. monsoon/wind + wave drift) for the Malacca Strait, Horsburgh and the South China Sea. Forecast window: <span id="cmRange">—</span>; outside it the app uses the model's tidal component only. Away from MPA points (beyond ~20 km) the map uses Copernicus; near them, MPA. The grid is ~9 km, so close inshore it can miss local detail.</p>
+      <p><b style="color:var(--emerald)">Copernicus Marine SMOC</b> surface currents (Mercator 1/12° model: tide from FES + circulation incl. monsoon/wind + wave drift) for the Andaman Sea &amp; Nicobar Islands, the Malacca Strait, Horsburgh and the South China Sea. Forecast window: <span id="cmRange">—</span>; outside it the app uses the model's tidal component only. Away from MPA points (beyond ~20 km) the map uses Copernicus; near them, MPA. The grid is ~9 km around Singapore and the southern Malacca Strait and ~28 km further out, so close inshore it can miss local detail.</p>
       <p>Residual (monsoon) drift on model stations:
         <select id="residual">
           <option value="auto">Auto by month</option>
@@ -239,6 +239,12 @@ const STATIONS = [
     ['natuna', 'Natuna (east)', 'South China Sea · Copernicus', 4.30, 108.70, 8],
     ['conson', 'Côn Sơn (offshore)', 'South China Sea · Copernicus', 8.40, 106.80, 8],
     ['midscs', 'Mid South China Sea', 'South China Sea · Copernicus', 7.50, 109.50, 7],
+    ['portblair', 'Port Blair (approach)', 'Andaman & Nicobar · Copernicus', 11.60, 92.85, 9],
+    ['tendeg', 'Ten Degree Channel', 'Andaman & Nicobar · Copernicus', 10.05, 92.55, 8],
+    ['carnic', 'Car Nicobar (east)', 'Andaman & Nicobar · Copernicus', 9.15, 93.05, 9],
+    ['greatch', 'Great Channel (Nicobar–Sumatra)', 'Andaman & Nicobar · Copernicus', 6.30, 94.50, 8],
+    ['andmid', 'Mid Andaman Sea', 'Andaman & Nicobar · Copernicus', 10.00, 95.50, 7],
+    ['phuket', 'Phuket (offshore west)', 'Andaman & Nicobar · Copernicus', 7.85, 98.10, 9],
   ].map(([id, name, strait, lat, lng, zoom]) => ({ id, name, strait, lat, lng, zoom, kind: 'cm' })).filter(() => !!CMEMS),
 ];
 
@@ -327,7 +333,7 @@ const CM = (() => {
 
 /* ---------- Land raster (fast on-water test for particles) ---------- */
 const LANDR = (() => {
-  const x0 = 98, x1 = 116.5, y0 = -2, y1 = 13, res = 0.01, w = Math.round((x1 - x0) / res), h = Math.round((y1 - y0) / res);
+  const x0 = 91, x1 = 116.5, y0 = -2, y1 = 15, res = 0.01, w = Math.round((x1 - x0) / res), h = Math.round((y1 - y0) / res);
   try {
     const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
     if (!g) return null;

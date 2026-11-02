@@ -18,7 +18,7 @@ CONS = list(SPEED)
 J2000 = dt.datetime(2000, 1, 1, tzinfo=dt.timezone.utc)
 GRIDS = {   # name: (lon_min, lon_max, lat_min, lat_max, stride on the 1/12 deg native grid)
     'fine':   (99.0, 106.0, -0.5, 4.5, 1),
-    'coarse': (98.5, 116.0, -1.5, 12.5, 3),
+    'coarse': (91.0, 116.0, -1.5, 15.0, 3),   # Andaman & Nicobar to mid South China Sea
 }
 FC_STEP_H, FC_DAYS, HIST_DAYS = 2, 6.5, 30
 
