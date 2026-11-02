@@ -162,7 +162,7 @@
       <h3>Data sources</h3>
       <p><b style="color:var(--emerald)">MPA Digital Tidal Atlas</b> hourly current predictions (set &amp; drift) for 7 Singapore Strait points: <span id="mpaRange"></span>.</p>
       <p><b style="color:var(--cyan)">Tide height</b>: MPA high/low water predictions, Tanjong Pagar (published via NEA): <span id="tideRange"></span>. Outside these dates the app uses harmonics fitted to the same MPA data.</p>
-      <p><b style="color:var(--amber)">Model</b> stations (Horsburgh, Malacca Strait) are approximate and for visual reference only.</p>
+      <p><b style="color:var(--emerald)">Copernicus Marine SMOC</b> surface currents (Mercator 1/12° model: tide from FES + circulation incl. monsoon/wind + wave drift) for the Malacca Strait, Horsburgh and the South China Sea. Forecast window: <span id="cmRange">—</span>; outside it the app uses the model's tidal component only. Away from MPA points (beyond ~20 km) the map uses Copernicus; near them, MPA. The grid is ~9 km, so close inshore it can miss local detail.</p>
       <p>Residual (monsoon) drift on model stations:
         <select id="residual">
           <option value="auto">Auto by month</option>
@@ -225,19 +225,20 @@ const STATIONS = [
     lat: m.lat, lng: m.lng, zoom: 12, kind: 'mpa', mpa: m, uv: m.fit, tide: 'sg' })),
   { id:'sultan', name:'Sultan Shoal', strait:'Singapore Strait · model', lat:1.2389, lng:103.6469, zoom:11, kind:'model',
     tide:'sg', uv: MPA_DATA.find(m => m.id === 'ssp_a').fit, note:'current from MPA Sudong A harmonics' },
-  { id:'horsburgh', name:'Horsburgh Lighthouse', strait:'Singapore Strait · model', kind:'model', lat:1.3302, lng:104.4064, zoom:10,
-    h:{Z0:1.45, M2:[0.52,325], S2:[0.22,8], N2:[0.10,305], K1:[0.42,320], O1:[0.36,272]},
-    u:{M2:1.10, S2:0.45, N2:0.20, K1:0.85, O1:0.65}, lag:{semi:-80, diur:-75}, res:{ne:-0.60, sw:0.35},
-    uv: scaleFit(MPA_DATA.find(m => m.id === 'eba_a').fit, 1.2), mirror: { m: MPA_DATA.find(m => m.id === 'eba_a'), k: 1.2 }, note:'current extrapolated from MPA EBA Point A (×1.2), same timing' },
-  { id:'ofb', name:'One Fathom Bank', strait:'Malacca Strait · model', kind:'model', lat:2.8833, lng:100.9944, zoom:9,
-    h:{Z0:2.20, M2:[1.40,195], S2:[0.58,235], N2:[0.26,178], K1:[0.20,350], O1:[0.12,300]},
-    u:{M2:1.25, S2:0.50, N2:0.25, K1:0.20, O1:0.15}, lag:{semi:-20, diur:-20}, res:{ne:-0.20, sw:-0.15} },
-  { id:'karimun', name:'Karimun Channel', strait:'Malacca Strait · model', kind:'model', lat:0.9800, lng:103.5200, zoom:10,
-    h:{Z0:1.70, M2:[0.92,268], S2:[0.38,310], N2:[0.17,250], K1:[0.28,345], O1:[0.25,296]},
-    u:{M2:1.80, S2:0.70, N2:0.35, K1:0.45, O1:0.35}, lag:{semi:-60, diur:-50}, res:{ne:-0.10, sw:0.10} },
-  { id:'pd', name:'Port Dickson (offshore)', strait:'Malacca Strait · model', kind:'model', lat:2.4700, lng:101.7000, zoom:10,
-    h:{Z0:1.75, M2:[1.02,225], S2:[0.42,265], N2:[0.19,208], K1:[0.23,345], O1:[0.15,298]},
-    u:{M2:0.95, S2:0.38, N2:0.18, K1:0.20, O1:0.14}, lag:{semi:-25, diur:-25}, res:{ne:-0.15, sw:-0.10} },
+  ...[
+    ['horsburgh', 'Horsburgh Lighthouse', 'Singapore Strait · Copernicus', 1.3302, 104.4064, 10],
+    ['karimun', 'Karimun Channel', 'Malacca Strait · Copernicus', 0.9800, 103.5200, 10],
+    ['pd', 'Port Dickson (offshore)', 'Malacca Strait · Copernicus', 2.4700, 101.7000, 10],
+    ['ofb', 'One Fathom Bank', 'Malacca Strait · Copernicus', 2.8833, 100.9944, 9],
+    ['aur', 'Pulau Aur (west)', 'South China Sea · Copernicus', 2.40, 104.40, 10],
+    ['tioman', 'Pulau Tioman (west)', 'South China Sea · Copernicus', 2.80, 104.05, 10],
+    ['kuantan', 'Kuantan (offshore)', 'South China Sea · Copernicus', 3.80, 103.55, 9],
+    ['kbharu', 'Kota Bharu (offshore)', 'South China Sea · Copernicus', 6.40, 102.50, 9],
+    ['anambas', 'Anambas (Tarempa)', 'South China Sea · Copernicus', 3.10, 106.00, 9],
+    ['natuna', 'Natuna (east)', 'South China Sea · Copernicus', 4.30, 108.70, 8],
+    ['conson', 'Côn Sơn (offshore)', 'South China Sea · Copernicus', 8.40, 106.80, 8],
+    ['midscs', 'Mid South China Sea', 'South China Sea · Copernicus', 7.50, 109.50, 7],
+  ].map(([id, name, strait, lat, lng, zoom]) => ({ id, name, strait, lat, lng, zoom, kind: 'cm' })).filter(() => !!CMEMS),
 ];
 
 /* ---------- Navigable channel corridors [lat, lng, half-width km] ----------
@@ -260,6 +261,84 @@ const PRISM = { amp: 1.1, lagMin: 30 };   // Johor Strait tide vs Tanjong Pagar 
 const CORR_K = {};
 for (const [k, pts] of Object.entries(JOHOR)) { CORRIDORS['jh_' + k] = pts.map(p => [p[0], p[1], p[2]]); CORR_K['jh_' + k] = pts.map(p => p[3]); }
 
+/* ---------- Copernicus Marine SMOC grids (tide + circulation + waves) ----------
+   Inside the forecast window: total surface current, 2-hourly, Catmull-Rom in time.
+   Outside it: tidal harmonics fitted to SMOC's tide component (FES). */
+const CM = (() => {
+  if (typeof CMEMS === 'undefined' || !CMEMS) return null;
+  const dec = (str, T) => { const b = atob(str), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return new T(a.buffer); };
+  const grids = ['fine', 'coarse'].map(k => CMEMS.grids[k]).filter(Boolean).map(g => {
+    const bits = dec(g.wet, Uint8Array), N = g.nx * g.ny, idx = new Int32Array(N).fill(-1); let n = 0;
+    for (let i = 0; i < N; i++) if (bits[i >> 3] & (128 >> (i & 7))) idx[i] = n++;
+    return { ...g, idx, fu: dec(g.fc.u, Int8Array), fv: dec(g.fc.v, Int8Array), hu: dec(g.harm.u, Int16Array), hv: dec(g.harm.v, Int16Array),
+      w: g.harm.cons.map(c => SPEED[c] * DEG) };
+  });
+  const g0 = grids[0];
+  const fcFrom = g0.fc.t0, fcTo = g0.fc.t0 + (g0.fc.n - 1) * g0.fc.dt;
+  const inFc = ms => ms >= fcFrom && ms <= fcTo;
+  const cr = (p0, p1, p2, p3, f) => p1 + 0.5 * f * (p2 - p0 + f * (2 * p0 - 5 * p1 + 4 * p2 - p3 + f * (3 * (p1 - p2) + p3 - p0)));
+  function cell(g, c, ms) {          // [ve, vn] kn at wet cell c
+    if (inFc(ms)) {
+      const x = (ms - g.fc.t0) / g.fc.dt, n = g.fc.n, i = Math.min(n - 2, Math.floor(x)), f = x - i, W = g.nwet, s = g.fc.scale;
+      const at = (A, k) => A[Math.max(0, Math.min(n - 1, k)) * W + c];
+      return [s * cr(at(g.fu, i - 1), at(g.fu, i), at(g.fu, i + 1), at(g.fu, i + 2), f), s * cr(at(g.fv, i - 1), at(g.fv, i), at(g.fv, i + 1), at(g.fv, i + 2), f)];
+    }
+    const t = hrs(ms), W = g.nwet, s = g.harm.scale;
+    let ve = g.hu[c], vn = g.hv[c];
+    g.w.forEach((w, k) => { const co = Math.cos(w * t), si = Math.sin(w * t);
+      ve += g.hu[(1 + 2 * k) * W + c] * co + g.hu[(2 + 2 * k) * W + c] * si;
+      vn += g.hv[(1 + 2 * k) * W + c] * co + g.hv[(2 + 2 * k) * W + c] * si; });
+    return [ve * s, vn * s];
+  }
+  let curMs = NaN; const cur = grids.map(g => ({ ve: new Float32Array(g.nwet), vn: new Float32Array(g.nwet) }));
+  function setTime(ms) {
+    if (ms === curMs) return; curMs = ms;
+    grids.forEach((g, gi) => { for (let c = 0; c < g.nwet; c++) { const v = cell(g, c, ms); cur[gi].ve[c] = v[0]; cur[gi].vn[c] = v[1]; } });
+  }
+  function sample(lat, lng, ms) {    // bilinear over wet corners; ms omitted = current time (precomputed)
+    for (let gi = 0; gi < grids.length; gi++) {
+      const g = grids[gi], fx = (lng - g.lon0) / g.dlon, fy = (lat - g.lat0) / g.dlat;
+      const i = Math.floor(fx), j = Math.floor(fy);
+      if (i < 0 || j < 0 || i >= g.nx - 1 || j >= g.ny - 1) continue;
+      const ax = fx - i, ay = fy - j; let ve = 0, vn = 0, ws = 0;
+      for (const [di, dj, w] of [[0, 0, (1 - ax) * (1 - ay)], [1, 0, ax * (1 - ay)], [0, 1, (1 - ax) * ay], [1, 1, ax * ay]]) {
+        const c = g.idx[(j + dj) * g.nx + i + di]; if (c < 0 || w <= 0) continue;
+        const v = ms === undefined ? [cur[gi].ve[c], cur[gi].vn[c]] : cell(g, c, ms);
+        ve += w * v[0]; vn += w * v[1]; ws += w;
+      }
+      if (ws > 0.05) return [ve / ws, vn / ws];
+    }
+    return null;
+  }
+  function axis(lat, lng) {          // major axis of the M2 tidal ellipse (bearing °T)
+    for (const g of grids) {
+      const i = Math.round((lng - g.lon0) / g.dlon), j = Math.round((lat - g.lat0) / g.dlat);
+      if (i < 0 || j < 0 || i >= g.nx || j >= g.ny) continue;
+      const c = g.idx[j * g.nx + i]; if (c < 0) continue;
+      const W = g.nwet, au = g.hu[W + c], bu = g.hu[2 * W + c], av = g.hv[W + c], bv = g.hv[2 * W + c];
+      const th = 0.5 * Math.atan2(2 * (au * av + bu * bv), au * au + bu * bu - av * av - bv * bv);   // from east axis
+      return ((90 - th / DEG) % 180 + 180) % 180;
+    }
+    return 90;
+  }
+  return { setTime, sample, axis, inFc, fcFrom, fcTo, fetched: CMEMS.fetched };
+})();
+
+/* ---------- Land raster (fast on-water test for particles) ---------- */
+const LANDR = (() => {
+  const x0 = 98, x1 = 116.5, y0 = -2, y1 = 13, res = 0.01, w = Math.round((x1 - x0) / res), h = Math.round((y1 - y0) / res);
+  try {
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+    if (!g) return null;
+    g.fillStyle = '#fff'; g.beginPath();
+    for (const poly of LAND) for (const ring of poly) { ring.forEach(([x, y], k) => { const px = (x - x0) / res, py = (y1 - y) / res; k ? g.lineTo(px, py) : g.moveTo(px, py); }); g.closePath(); }
+    g.fill('evenodd');
+    const d = g.getImageData(0, 0, w, h).data, m = new Uint8Array(w * h);
+    for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 127 ? 1 : 0;
+    return (lat, lng) => { const i = Math.floor((lng - x0) / res), j = Math.floor((y1 - lat) / res); return i >= 0 && j >= 0 && i < w && j < h ? m[j * w + i] === 1 : false; };
+  } catch (e) { return null; }
+})();
+
 /* ---------- Planar helpers (km) ---------- */
 const KX = 111.25, KY = 110.57;
 const SEGS = [];
@@ -273,6 +352,10 @@ for (const [cid, pts] of Object.entries(CORRIDORS)) {
       jh: !!K, k1: K ? K[i] : 0, k2: K ? K[i + 1] : 0 });
   }
 }
+const JBOX = (() => { let b = [90, -90, 180, -180];
+  for (const s of SEGS) if (s.jh) for (const [x, y] of [[s.ax, s.ay], [s.ax + s.dx, s.ay + s.dy]]) {
+    const la = y / KY, lo = x / KX; b = [Math.min(b[0], la), Math.max(b[1], la), Math.min(b[2], lo), Math.max(b[3], lo)]; }
+  return [b[0] - 0.06, b[1] + 0.06, b[2] - 0.06, b[3] + 0.06]; })();
 function nearestSeg(lat, lng, noJohor) {
   const x = lng * KX, y = lat * KY;
   let best = null, bd = Infinity;
@@ -288,6 +371,9 @@ function nearestSeg(lat, lng, noJohor) {
 }
 // Flood axis per station = local channel tangent
 for (const s of STATIONS) {
+  if (s.kind === 'cm') {           // + direction = M2 ellipse major axis, pointing east-ish/north-ish
+    const b = CM.axis(s.lat, s.lng) * DEG; s.tx = Math.sin(b); s.ty = Math.cos(b); s.flood = b / DEG; continue;
+  }
   const n = nearestSeg(s.lat, s.lng, true);
   s.tx = n.tx; s.ty = n.ty;
   s.flood = (Math.atan2(n.tx, n.ty) / DEG + 360) % 360;   // bearing °T of + direction
@@ -359,11 +445,12 @@ const MPA = {
    src: 'mpa' (MPA hourly predictions), 'mpafit' (harmonics fitted to MPA data), 'model' */
 function stationState(s, ms) {
   let ve, vn, src;
-  if (s.kind === 'mpa' && MPA.covers(s.mpa, ms)) { [ve, vn] = MPA.sample(s.mpa, ms); src = 'mpa'; }
+  if (s.kind === 'cm') { [ve, vn] = CM.sample(s.lat, s.lng, ms) || [0, 0]; src = CM.inFc(ms) ? 'cmfc' : 'cmtide'; }
+  else if (s.kind === 'mpa' && MPA.covers(s.mpa, ms)) { [ve, vn] = MPA.sample(s.mpa, ms); src = 'mpa'; }
   else if (s.mirror && MPA.covers(s.mirror.m, ms)) { [ve, vn] = MPA.sample(s.mirror.m, ms); ve *= s.mirror.k; vn *= s.mirror.k; src = 'model'; }
   else if (s.uv) { const t = hrs(ms); ve = harm(s.uv.E, t); vn = harm(s.uv.N, t); src = s.kind === 'mpa' ? 'mpafit' : 'model'; }
   else { const u = Sim.along(s, ms); ve = u * s.tx; vn = u * s.ty; src = 'model'; }
-  const h = s.tide === 'sg' ? SGTide.height(ms) : Sim.height(s, ms);
+  const h = s.tide === 'sg' ? SGTide.height(ms) : s.h ? Sim.height(s, ms) : NaN;
   const hsrc = s.tide === 'sg' ? (SGTide.inRange(ms) ? 'mpa' : 'mpafit') : 'model';
   const u = ve * s.tx + vn * s.ty;
   const drift = Math.hypot(ve, vn);
@@ -375,6 +462,7 @@ function stationState(s, ms) {
 let stateCache = [];
 let dEta = 0;   // rate of tide change in the Johor Strait, m/s
 function refreshStates(ms) {
+  if (CM) CM.setTime(ms);
   stateCache = STATIONS.map(s => ({ s, st: stationState(s, ms) }));
   const t = ms - PRISM.lagMin * 60e3;
   dEta = PRISM.amp * (SGTide.height(t + 300e3) - SGTide.height(t - 300e3)) / 600;
@@ -398,7 +486,7 @@ function blendVec(lat, lng, n) {
   const w = mouthW(lat, lng);              // 1 at the mouth, 0 at 3 km away
   const jv = johorVec(lat, lng, n);
   if (w <= 0) return jv;
-  const sv = idwVec(lat, lng);
+  const sq = seaVec(lat, lng), sv = sq ? sq.v : idwVec(lat, lng, true);
   const a = n.jh ? 1 - 0.5 * w : 0.5 * w;  // Johor share: 1 well inside, 0.5 at the mouth, 0 offshore
   return [a * jv[0] + (1 - a) * sv[0], a * jv[1] + (1 - a) * sv[1]];
 }
@@ -410,10 +498,25 @@ function nearestSegJ(lat, lng) {
     if (d < bd) { bd = d; best = { d, w: s.w1 + (s.w2 - s.w1) * t, tx: s.tx, ty: s.ty, K: s.k1 + (s.k2 - s.k1) * t, jh: true, cid: s.cid }; } }
   return best;
 }
-function idwVec(lat, lng) {
+const MPA_ZONE = [8, 20];   // km: full MPA inside 8 km of an MPA point, blended to Copernicus by 20 km
+function mpaW(lat, lng) {
+  let d = Infinity;
+  for (const s of STATIONS) if (s.kind === 'mpa' || s.id === 'sultan') d = Math.min(d, Math.hypot((s.lng - lng) * KX, (s.lat - lat) * KY));
+  return d <= MPA_ZONE[0] ? 1 : d >= MPA_ZONE[1] ? 0 : (MPA_ZONE[1] - d) / (MPA_ZONE[1] - MPA_ZONE[0]);
+}
+function seaVec(lat, lng) {           // {v:[ve,vn], src} or null
+  const w = mpaW(lat, lng), c = CM ? CM.sample(lat, lng) : null;
+  if (!CM) return { v: idwVec(lat, lng), src: 'mpa' };
+  if (w <= 0) return c ? { v: c, src: 'cm' } : null;
+  const m = idwVec(lat, lng, true);
+  if (!c || w >= 1) return { v: m, src: 'mpa' };
+  return { v: [w * m[0] + (1 - w) * c[0], w * m[1] + (1 - w) * c[1]], src: 'blend' };
+}
+function idwVec(lat, lng, mpaOnly) {
   const x = lng * KX, y = lat * KY;
   let ve = 0, vn = 0, ws = 0;
   for (const { s, st } of stateCache) {
+    if (mpaOnly && s.kind === 'cm') continue;
     const d2 = (s.lng * KX - x) ** 2 + (s.lat * KY - y) ** 2 + 100;
     const w = 1 / (d2 * Math.sqrt(d2));
     ve += w * st.ve; vn += w * st.vn; ws += w;
@@ -421,10 +524,21 @@ function idwVec(lat, lng) {
   return [ve / ws, vn / ws];
 }
 function field(lat, lng) {
+  if (LANDR && LANDR(lat, lng)) return null;
+  if (CM && (lat < JBOX[0] || lat > JBOX[1] || lng < JBOX[2] || lng > JBOX[3])) {   // fast path away from the Johor channels
+    const sq = seaVec(lat, lng);
+    if (sq && sq.src !== 'mpa') return { u: 1, tx: sq.v[0], ty: sq.v[1] };
+  }
   const n = nearestSeg(lat, lng);
-  if (!n || n.d > n.w) return null;
+  const inCh = n && n.d <= n.w;
+  if (inCh && (n.jh || mouthW(lat, lng) > 0)) { const [e, nn] = blendVec(lat, lng, n); return { u: 1, tx: e, ty: nn }; }
+  if (CM) {
+    const sq = seaVec(lat, lng);
+    if (!sq || (sq.src === 'mpa' && !inCh)) return null;
+    return { u: 1, tx: sq.v[0], ty: sq.v[1] };
+  }
+  if (!inCh) return null;
   const r = n.d / n.w;
-  if (n.jh || mouthW(lat, lng) > 0) { const [e, nn] = blendVec(lat, lng, n); return { u: 1, tx: e, ty: nn }; }
   const [ve, vn] = idwVec(lat, lng);
   const speed = (ve * n.tx + vn * n.ty) * (1 - 0.45 * r * r);   // channelised, slower at edges
   return { u: speed, tx: n.tx, ty: n.ty };
@@ -485,8 +599,8 @@ function spawn(p) {
   // try screen-space rejection first (dense where you're looking), then corridor sampling
   for (let i = 0; i < 12; i++) {
     const x = Math.random() * W, y = Math.random() * H;
-    const ll = map.containerPointToLatLng([x, y]); const n = nearestSeg(ll.lat, ll.lng);
-    if (n && n.d < n.w) return Object.assign(p, { x, y, age: 0, max: 40 + Math.random() * 80 });
+    const ll = map.containerPointToLatLng([x, y]);
+    if (field(ll.lat, ll.lng)) return Object.assign(p, { x, y, age: 0, max: 40 + Math.random() * 80 });
   }
   for (let i = 0; i < 6; i++) {
     const s = SEGS[(Math.random() * SEGS.length) | 0], t = Math.random();
@@ -518,7 +632,7 @@ function drawFlow() {
     const f = field(ll.lat, ll.lng);
     if (!f) { spawn(p); continue; }
     const nx = p.x + f.tx * f.u * k, ny = p.y - f.ty * f.u * k;
-    const a = Math.abs(f.u), b = a < 1 ? 0 : a < 2 ? 1 : a < 3 ? 2 : 3;
+    const a = Math.abs(f.u) * Math.hypot(f.tx, f.ty), b = a < 1 ? 0 : a < 2 ? 1 : a < 3 ? 2 : 3;
     buckets[b].push(p.x, p.y, nx, ny);
     p.x = nx; p.y = ny;
     if (nx < 0 || ny < 0 || nx > W || ny > H) p.dead = true;
@@ -572,11 +686,11 @@ function buildSeries() {
   const H = [], U = [], D = [];
   for (let m = 0; m <= 1440; m += 10) {
     const st = stationState(s, App.dayStart + m * 60e3);
-    H.push({ x: m, y: +st.h.toFixed(3) }); U.push({ x: m, y: +st.u.toFixed(3) }); D.push({ x: m, y: +st.drift.toFixed(3) });
+    if (isFinite(st.h)) H.push({ x: m, y: +st.h.toFixed(3) }); U.push({ x: m, y: +st.u.toFixed(3) }); D.push({ x: m, y: +st.drift.toFixed(3) });
   }
   const axis = dirName(s.flood);
   chart.data.datasets[0].data = H;
-  chart.data.datasets[0].label = s.tide === 'sg' ? 'Tide height, Tanjong Pagar (m)' : 'Tide height, model (m)';
+  chart.data.datasets[0].label = s.tide === 'sg' ? 'Tide height, Tanjong Pagar (m)' : s.h ? 'Tide height, model (m)' : 'No tide height for this spot';
   chart.data.datasets[1].data = U;
   chart.data.datasets[1].label = `Current (kn, + = ${axis}-going)`;
   chart.data.datasets[2].data = D;
@@ -621,13 +735,21 @@ function onLand(lat, lng) {
   return false;
 }
 function probeAt(lat, lng) {
-  if (onLand(lat, lng)) return { land: true };
+  if (LANDR ? LANDR(lat, lng) : onLand(lat, lng)) return { land: true };
   const n = nearestSeg(lat, lng);
   const x = lng * KX, y = lat * KY;
   if (n && n.jh && n.d <= n.w * 1.6) {
     const [e, nn] = blendVec(lat, lng, n), u = prismKn(n.K);
     const mix = mouthW(lat, lng) > 0 ? ' (blended with Singapore Strait)' : '';
     return { spd: Math.hypot(e, nn), set: (Math.atan2(e, nn) / DEG + 360) % 360, src: 'Estimate · ' + JOHOR_NAMES[n.cid.slice(3)] + mix, note: u >= 0 ? 'Flooding (into the strait)' : 'Ebbing (out of the strait)' };
+  }
+  if (CM) {
+    const sq = seaVec(lat, lng);
+    if (!sq) return { spd: 0, set: 0, src: 'No data here (too close to the coast for the model grid)' };
+    const fc = CM.inFc(App.ms);
+    const lab = { mpa: 'MPA Tidal Atlas (interpolated)', blend: 'MPA + Copernicus blend', cm: fc ? 'Copernicus forecast (tide + wind + waves)' : 'Copernicus tide model (FES) · outside forecast window' }[sq.src];
+    const [ve, vn] = sq.v;
+    return { spd: Math.hypot(ve, vn), set: (Math.atan2(ve, vn) / DEG + 360) % 360, src: lab };
   }
   const [ve, vn] = idwVec(lat, lng);
   let near = null, nd = Infinity;
@@ -700,8 +822,8 @@ function updateReadouts() {
   $('rSet').textContent = fmtB(st.set);
   const dirWord = dirName;
   $('rPhase').textContent = st.drift < 0.15 ? 'Slack water' : `${dirWord(st.set)}-going`;
-  $('rH').textContent = st.h.toFixed(2) + ' m CD';
-  $('rTrend').textContent = Math.abs(dh) < .005 ? 'Stand' : dh > 0 ? 'Rising ▲' : 'Falling ▼';
+  $('rH').textContent = isFinite(st.h) ? st.h.toFixed(2) + ' m CD' : 'n/a';
+  $('rTrend').textContent = !isFinite(dh) ? '—' : Math.abs(dh) < .005 ? 'Stand' : dh > 0 ? 'Rising ▲' : 'Falling ▼';
   $('tlabel').textContent = fmtT(App.minute) + ' SGT';
   $('scrub').value = Math.floor(App.minute);
   updateBadge(st);
@@ -716,7 +838,7 @@ function changeDate(str) {
 }
 function updateBadge(st) {
   const b = $('srcBadge');
-  const lab = { mpa: ['live', 'MPA data'], mpafit: ['sim', 'MPA harmonic fit'], model: ['err', 'Model · approx'] };
+  const lab = { mpa: ['live', 'MPA data'], mpafit: ['sim', 'MPA harmonic fit'], model: ['err', 'Model · approx'], cmfc: ['live', 'Copernicus forecast'], cmtide: ['sim', 'Copernicus tide model'] };
   const [c, t] = lab[st.src];
   b.className = 'badge ' + c; b.textContent = t;
 }
@@ -743,7 +865,9 @@ $('tglLanes').onclick = e => { const on = !map.hasLayer(lanes); on ? lanes.addTo
   const f = ms => new Date(ms + SGT_OFFSET_MS).toISOString().slice(0, 10);
   const [a, b] = MPA.range(); $('mpaRange').textContent = `${f(a)} to ${f(b)}`;
   $('tideRange').textContent = `${f(SGTide.from)} to ${f(SGTide.to)}`;
+  if (CM) { const g = ms => new Date(ms + SGT_OFFSET_MS).toISOString().slice(0, 16).replace('T', ' '); $('cmRange').textContent = `${g(CM.fcFrom)} to ${g(CM.fcTo)} SGT`; }
 }
+if (CM) $('residual').closest('p').style.display = 'none';
 $('residual').onchange = e => { residualMode = e.target.value; buildSeries(); updateReadouts(); };
 
 /* ---------- Main loop ---------- */
