@@ -276,8 +276,11 @@ const CORRIDORS = {
 const JOHOR_NAMES = { west: 'West Johor Strait', east: 'East Johor Strait', ubinN: 'Johor Strait (north of Ubin)',
   river: 'Johor River', outA: 'Changi–Tekong channel', outB: 'East of Pulau Tekong' };
 const PRISM = { amp: 1.1, lagMin: 30 };   // Johor Strait tide vs Tanjong Pagar (assumed)
+/* Field calibration (observed by eye). 2026-11-05 11:54 SGT off Changi Sailing Club (1.3959, 103.9814):
+   observed ≥1.0 kn on the ebb vs 0.31 kn modelled → ×3.2 on the eastern channels. West Johor and the river are still uncalibrated. */
+const JOHOR_CAL = { east: 3.2, ubinN: 3.2, outA: 3.2, outB: 3.2 };
 const CORR_K = {};
-for (const [k, pts] of Object.entries(JOHOR)) { CORRIDORS['jh_' + k] = pts.map(p => [p[0], p[1], p[2]]); CORR_K['jh_' + k] = pts.map(p => p[3]); }
+for (const [k, pts] of Object.entries(JOHOR)) { CORRIDORS['jh_' + k] = pts.map(p => [p[0], p[1], p[2]]); CORR_K['jh_' + k] = pts.map(p => p[3] * (JOHOR_CAL[k] || 1)); }
 
 /* ---------- Copernicus Marine SMOC grids (tide + circulation + waves) ----------
    Inside the forecast window: total surface current, 2-hourly, Catmull-Rom in time.
